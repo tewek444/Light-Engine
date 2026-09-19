@@ -20,7 +20,7 @@
 
 ---
 
-## 📦 Branches
+## Branches
 
 One branch per loader — the code lives there, not here:
 
@@ -29,7 +29,7 @@ One branch per loader — the code lives there, not here:
 | [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0 (Alpha1) |
 | [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0 (Alpha1) |
 
-## ✨ What it does
+## What it does
 
 - Gives **block light stronger than 15** — the radius comes from the config, per block.
 - Vanilla lighting keeps working untouched in the 0–15 range.
@@ -37,22 +37,18 @@ One branch per loader — the code lives there, not here:
 - No overexposure in rendering, sky light is never touched.
 - One `COMMON` config file + in-game settings screen on the client.
 
-## 🗺️ Support matrix
+## Support matrix
 
-| Minecraft | Loader   | Mod version    | Status           |
-| --------- | -------- | -------------- | ---------------- |
-| 1.21.1    | Fabric   | 1.0.0 (Alpha1) | ✅ Supported     |
-| 1.21.1    | NeoForge | 1.0.0 (Alpha1) | ✅ Supported     |
-| 1.20.1    | Fabric   | —              | 🔜 Planned       |
-| 26.3      | Fabric   | —              | 🔜 Planned       |
-| 26.3      | NeoForge | —              | 🔜 Planned       |
-| any       | Forge    | —              | ❌ Not supported |
-| any       | Quilt    | —              | ❌ Not supported |
+| Minecraft | Loader   | Mod version    | Status        |
+| --------- | -------- | -------------- | ------------- |
+| 1.21.1    | Fabric   | 1.0.0 (Alpha1) | Supported     |
+| 1.21.1    | NeoForge | 1.0.0 (Alpha1) | Supported     |
+| 1.20.1    | Fabric   | —              | Planned       |
+| 26.3      | Fabric   | —              | Planned       |
+| 26.3      | NeoForge | —              | Planned       |
+| any       | Forge    | —              | Not supported |
+| any       | Quilt    | —              | Not supported |
 
-## 🔔 Update check
-
-Each build fetches `update.json` from its own branch once per game start (background thread, 8s timeout, silent when offline) and prints one chat message with a link to Releases when a newer version is out. Nothing is downloaded automatically. NeoForge additionally shows updates in the mod list.
-
-## 📄 License
+## License
 
 MIT — forks allowed as long as the copyright notice (`Copyright (c) 2026 Tewek`) and this permission notice stay included.
