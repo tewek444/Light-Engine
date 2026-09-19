@@ -26,8 +26,8 @@
 
 | Ветка | Загрузчик | Minecraft | Мод |
 | ----- | --------- | --------- | --- |
-| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0 (Alpha1) |
-| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0 (Alpha1) |
+| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0-alpha1 |
+| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0-alpha1 |
 
 ## Что умеет мод
 
@@ -39,15 +39,17 @@
 
 ## Таблица поддержки
 
-| Minecraft | Загрузчик | Версия мода    | Статус          |
-| --------- | --------- | -------------- | --------------- |
-| 1.21.1    | Fabric    | 1.0.0 (Alpha1) | Поддерживается  |
-| 1.21.1    | NeoForge  | 1.0.0 (Alpha1) | Поддерживается  |
-| 1.20.1    | Fabric    | —              | В планах        |
-| 26.3      | Fabric    | —              | В планах        |
-| 26.3      | NeoForge  | —              | В планах        |
-| любая     | Forge     | —              | Не будет        |
-| любая     | Quilt     | —              | Не будет        |
+| Minecraft | Загрузчик | Версия мода  | Статус |
+| --------- | --------- | ------------ | ------ |
+| 1.21.1    | Fabric    | 1.0.0-alpha1 | ✅     |
+| 1.21.1    | NeoForge  | 1.0.0-alpha1 | ✅     |
+| 1.20.1    | Fabric    | —            | 🚧     |
+| 26.3      | Fabric    | —            | 🚧     |
+| 26.3      | NeoForge  | —            | 🚧     |
+| любая     | Forge     | —            | ❌     |
+| любая     | Quilt     | —            | ❌     |
+
+✅ — поддерживается, 🚧 — в разработке, ❌ — не поддерживается.
 
 ## Лицензия
 

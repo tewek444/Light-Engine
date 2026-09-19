@@ -26,8 +26,8 @@ One branch per loader — the code lives there, not here:
 
 | Branch | Loader | Minecraft | Mod |
 | ------ | ------ | --------- | --- |
-| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0 (Alpha1) |
-| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0 (Alpha1) |
+| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0-alpha1 |
+| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0-alpha1 |
 
 ## What it does
 
@@ -39,15 +39,17 @@ One branch per loader — the code lives there, not here:
 
 ## Support matrix
 
-| Minecraft | Loader   | Mod version    | Status        |
-| --------- | -------- | -------------- | ------------- |
-| 1.21.1    | Fabric   | 1.0.0 (Alpha1) | Supported     |
-| 1.21.1    | NeoForge | 1.0.0 (Alpha1) | Supported     |
-| 1.20.1    | Fabric   | —              | Planned       |
-| 26.3      | Fabric   | —              | Planned       |
-| 26.3      | NeoForge | —              | Planned       |
-| any       | Forge    | —              | Not supported |
-| any       | Quilt    | —              | Not supported |
+| Minecraft | Loader   | Mod version  | Status |
+| --------- | -------- | ------------ | ------ |
+| 1.21.1    | Fabric   | 1.0.0-alpha1 | ✅     |
+| 1.21.1    | NeoForge | 1.0.0-alpha1 | ✅     |
+| 1.20.1    | Fabric   | —            | 🚧     |
+| 26.3      | Fabric   | —            | 🚧     |
+| 26.3      | NeoForge | —            | 🚧     |
+| any       | Forge    | —            | ❌     |
+| any       | Quilt    | —            | ❌     |
+
+✅ — supported, 🚧 — in development, ❌ — not supported.
 
 ## License
 
