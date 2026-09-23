@@ -40,15 +40,15 @@
 
 ## Таблица поддержки
 
-| Minecraft | Загрузчик | Версия мода  | Статус |
-| --------- | --------- | ------------ | ------ |
-| 1.21.1    | Fabric    | 1.0.0-alpha2 | ✅     |
-| 1.21.1    | NeoForge  | 1.0.0-alpha2 | ✅     |
-| 26.3      | NeoForge  | 1.0.0-alpha2 | 🚧     |
-| 26.3      | Fabric    | —            | 📋     |
-| 1.20.1    | Fabric    | —            | 📋     |
-| любая     | Forge     | —            | ❌     |
-| любая     | Quilt     | —            | ❌     |
+| Minecraft | Загрузчик | Версия мода  | Статус | Скачать |
+| --------- | --------- | ------------ | ------ | ------- |
+| 1.21.1    | Fabric    | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-fabric.jar) |
+| 1.21.1    | NeoForge  | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-neoforge.jar) |
+| 26.3      | NeoForge  | 1.0.0-alpha2 | 🚧     | — |
+| 26.3      | Fabric    | —            | 📋     | — |
+| 1.20.1    | Fabric    | —            | 📋     | — |
+| любая     | Forge     | —            | ❌     | — |
+| любая     | Quilt     | —            | ❌     | — |
 
 ✅ — поддерживается, 🚧 — в разработке, 📋 — в планах, ❌ — не поддерживается.
 

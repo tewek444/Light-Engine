@@ -40,15 +40,15 @@ One branch per loader — the code lives there, not here:
 
 ## Support matrix
 
-| Minecraft | Loader   | Mod version  | Status |
-| --------- | -------- | ------------ | ------ |
-| 1.21.1    | Fabric   | 1.0.0-alpha2 | ✅     |
-| 1.21.1    | NeoForge | 1.0.0-alpha2 | ✅     |
-| 26.3      | NeoForge | 1.0.0-alpha2 | 🚧     |
-| 26.3      | Fabric   | —            | 📋     |
-| 1.20.1    | Fabric   | —            | 📋     |
-| any       | Forge    | —            | ❌     |
-| any       | Quilt    | —            | ❌     |
+| Minecraft | Loader   | Mod version  | Status | Download |
+| --------- | -------- | ------------ | ------ | -------- |
+| 1.21.1    | Fabric   | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-fabric.jar) |
+| 1.21.1    | NeoForge | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-neoforge.jar) |
+| 26.3      | NeoForge | 1.0.0-alpha2 | 🚧     | — |
+| 26.3      | Fabric   | —            | 📋     | — |
+| 1.20.1    | Fabric   | —            | 📋     | — |
+| any       | Forge    | —            | ❌     | — |
+| any       | Quilt    | —            | ❌     | — |
 
 ✅ — supported, 🚧 — in development, 📋 — planned, ❌ — not supported.
 
