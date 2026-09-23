@@ -1,0 +1,22 @@
+{
+	"required": true,
+	"package": "me.tewek.lightengine.mixin",
+	"compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BlockStateBaseMixin",
+    "LightEngineQueueEntryMixin",
+		"BlockLightEngineMixin",
+		"LayerLightSectionStorageMixin",
+		"ChunkSerializerMixin",
+		"PlayerChunkSenderMixin",
+ 		"MinecraftServerMixin",
+ 		"ThreadedLightCheckMixin",
+ 		"LeBreakWatchMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

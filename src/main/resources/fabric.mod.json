@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "lightengine",
+	"version": "${version}",
+	"name": "Light Engine",
+	"description": "Edit the lighting however you like.",
+	"authors": [
+		"Tewek"
+	],
+	"license": "MIT",
+	"icon": "assets/lightengine/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"me.tewek.lightengine.LightEngine"
+		],
+		"client": [
+			"me.tewek.lightengine.client.LightEngineClient"
+		],
+		"modmenu": [
+			"me.tewek.lightengine.client.compat.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		"lightengine.mixins.json",
+		{
+			"config": "lightengine.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"fabric-api": "*",
+		"minecraft": "~1.21.1",
+		"java": ">=21"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
