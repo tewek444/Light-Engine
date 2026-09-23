@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-44bd32" alt="Minecraft 1.21.1">
   <img src="https://img.shields.io/badge/Загрузчики-Fabric_%7C_NeoForge-e1b12c" alt="Fabric и NeoForge">
   <img src="https://img.shields.io/badge/Java-21-f39c12" alt="Java 21">
-  <img src="https://img.shields.io/badge/Статус-Alpha1-e74c3c" alt="Alpha1">
+  <img src="https://img.shields.io/badge/Статус-Alpha2-e74c3c" alt="Alpha2">
   <img src="https://img.shields.io/badge/Лицензия-MIT-3498db" alt="Лицензия MIT">
 </p>
 
@@ -26,8 +26,9 @@
 
 | Ветка | Загрузчик | Minecraft | Мод |
 | ----- | --------- | --------- | --- |
-| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0-alpha1 |
-| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0-alpha1 |
+| [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0-alpha2 |
+| [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0-alpha2 |
+| [`neoforge/26.3`](https://github.com/tewek444/Light-Engine/tree/neoforge/26.3) | NeoForge | 26.3 | 1.0.0-alpha2 |
 
 ## Что умеет мод
 
@@ -41,11 +42,11 @@
 
 | Minecraft | Загрузчик | Версия мода  | Статус |
 | --------- | --------- | ------------ | ------ |
-| 1.21.1    | Fabric    | 1.0.0-alpha1 | ✅     |
-| 1.21.1    | NeoForge  | 1.0.0-alpha1 | ✅     |
+| 1.21.1    | Fabric    | 1.0.0-alpha2 | ✅     |
+| 1.21.1    | NeoForge  | 1.0.0-alpha2 | ✅     |
 | 1.20.1    | Fabric    | —            | 🚧     |
 | 26.3      | Fabric    | —            | 🚧     |
-| 26.3      | NeoForge  | —            | 🚧     |
+| 26.3      | NeoForge  | 1.0.0-alpha2 | 🚧     |
 | любая     | Forge     | —            | ❌     |
 | любая     | Quilt     | —            | ❌     |
 
