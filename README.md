@@ -29,6 +29,7 @@ One branch per loader — the code lives there, not here:
 | [`fabric/1.21.1`](https://github.com/tewek444/Light-Engine/tree/fabric/1.21.1) | Fabric | 1.21.1 | 1.0.0-alpha2 |
 | [`neoforge/1.21.1`](https://github.com/tewek444/Light-Engine/tree/neoforge/1.21.1) | NeoForge | 1.21.1 | 1.0.0-alpha2 |
 | [`neoforge/26.3`](https://github.com/tewek444/Light-Engine/tree/neoforge/26.3) | NeoForge | 26.3 | 1.0.0-alpha2 |
+| [`fabric/26.3`](https://github.com/tewek444/Light-Engine/tree/fabric/26.3) | Fabric | 26.3 | 1.0.0-alpha3 |
 
 ## What it does
 
@@ -45,7 +46,7 @@ One branch per loader — the code lives there, not here:
 | 1.21.1    | Fabric   | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-fabric.jar) |
 | 1.21.1    | NeoForge | 1.0.0-alpha2 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha2/Light-Engine-v1.0.0-alpha2-mc1.21.1-neoforge.jar) |
 | 26.3      | NeoForge | 1.0.0-alpha2 | 🚧     | — |
-| 26.3      | Fabric   | —            | 📋     | — |
+| 26.3      | Fabric   | 1.0.0-alpha3 | 🚧     | — |
 | 1.20.1    | Fabric   | —            | 📋     | — |
 | any       | Forge    | —            | ❌     | — |
 | any       | Quilt    | —            | ❌     | — |
