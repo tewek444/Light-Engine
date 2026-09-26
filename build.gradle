@@ -1,0 +1,144 @@
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"light-engine" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. Required: networking, lifecycle events.
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// MixinExtras (fabric variant) for @ModifyExpressionValue.
+	modImplementation "io.github.llamalad7:mixinextras-fabric:0.3.5"
+	annotationProcessor "io.github.llamalad7:mixinextras-fabric:0.3.5"
+
+	// NightConfig (TOML), bundled into the mod jar via JarJar.
+	modImplementation "com.electronwill.night-config:core:3.8.3"
+	modImplementation "com.electronwill.night-config:toml:3.8.3"
+	include "com.electronwill.night-config:core:3.8.3"
+	include "com.electronwill.night-config:toml:3.8.3"
+
+	// ModMenu: compile-only, optional at runtime.
+	modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+def lightFieldStoreRegressionTest = tasks.register("lightFieldStoreRegressionTest", JavaExec) {
+	dependsOn testClasses
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "me.tewek.lightengine.lightfield.LightFieldStoreRegressionTest"
+}
+
+// The standalone regression test needs Minecraft + both mod outputs.
+// Loom only wires main/client, so extend the test source set explicitly
+// (client classes live on the client source set with split environments).
+sourceSets {
+	test {
+		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
+		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
+	}
+}
+
+tasks.named("test") {
+	dependsOn lightFieldStoreRegressionTest
+	exclude "**/LightFieldStoreRegressionTest.class"
+}
+
+base {
+	archivesName = "lightengine"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 17
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// Auto-incrementing build number, embedded in the jar file names only
+// (mod metadata keeps the plain version). Applied after evaluation so it
+// wins over Loom's own archive naming. The counter file is only written
+// when remapping actually executes, so up-to-date builds never bump it.
+def buildNumberFile = file("build-number.txt")
+if (!buildNumberFile.exists()) {
+	buildNumberFile.text = "0"
+}
+def buildNumber = buildNumberFile.text.trim().toInteger()
+afterEvaluate {
+	tasks.named("jar") {
+		archiveVersion = "${project.version}+build.${buildNumber}"
+	}
+	tasks.named("remapJar") {
+		archiveVersion = "${project.version}+build.${buildNumber}"
+		doLast {
+			buildNumberFile.text = "${buildNumber + 1}"
+		}
+	}
+	tasks.named("remapSourcesJar") {
+		archiveVersion = "${project.version}+build.${buildNumber}"
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
