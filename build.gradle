@@ -1,0 +1,157 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true
+    }
+}
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 17 to end users in 1.20.1, so mods should target Java 17.
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    // Official (Mojang) mappings, same as the Fabric 1.20.1 branch uses.
+    // Mixin targets below are written against these names, no refmap needed.
+    mappings channel: 'official', version: '1.20.1'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--nogui'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Mixin annotation processor (generates refmap) + MixinExtras for @ModifyExpressionValue.
+    // NOTE: mixinextras-forge is a thin JarJar wrapper (the injector classes live
+    // in its embedded MixinExtras jar), so compilation uses the -fabric variant of
+    // the SAME version (identical classes, plain jar). At runtime the wrapper is
+    // bundled via jarJar and Forge's JarJar system provides the real classes.
+    // NightConfig is provided by Forge itself at runtime, no extra dependency needed.
+    // Gson is provided by vanilla Minecraft.
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    annotationProcessor "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
+    implementation "io.github.llamalad7:mixinextras-fabric:${mixinextras_version}"
+    implementation "io.github.llamalad7:mixinextras-forge:${mixinextras_version}"
+    jarJar "io.github.llamalad7:mixinextras-forge:[${mixinextras_version},0.4)"
+}
+
+// This block of code expands all declared replace properties in the specified resource targets.
+// A missing property will result in an error. Properties are expanded using ${} Groovy notation.
+tasks.named('processResources', ProcessResources).configure {
+    def replaceProperties = [
+            minecraft_version     : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version         : forge_version,
+            forge_version_range   : forge_version_range,
+            loader_version_range  : loader_version_range,
+            mod_id                : mod_id,
+            mod_name              : mod_name,
+            mod_license           : mod_license,
+            mod_version           : mod_version,
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest.attributes([
+            'MixinConfigs': 'lightengine.mixins.json,lightengine.client.mixins.json'
+    ])
+}
+
+// ForgeGradle leaves jarJar disabled by default; we do bundle MixinExtras,
+// so force it on (a real misconfiguration will now fail loudly instead).
+tasks.named('jarJar') {
+    enabled = true
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = targetCompatibility = '17'
+}
+
+// Example configuration to allow publishing using the maven-publish plugin
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+// Auto-incrementing build number, embedded in the jar file name only
+// (mod metadata keeps the plain mod_version). The counter file is only
+// written when the jar task actually executes, so IDE syncs and
+// up-to-date builds never bump it.
+def buildNumberFile = file("build-number.txt")
+if (!buildNumberFile.exists()) {
+    buildNumberFile.text = "0"
+}
+def buildNumber = buildNumberFile.text.trim().toInteger()
+tasks.named("jar", Jar).configure {
+    archiveVersion = "${mod_version}+build.${buildNumber}"
+    doLast {
+        buildNumberFile.text = "${buildNumber + 1}"
+    }
+}
