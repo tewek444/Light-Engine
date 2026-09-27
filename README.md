@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Loaders-Fabric_%7C_NeoForge-e1b12c" alt="Fabric / NeoForge / Forge">
-  <img src="https://img.shields.io/badge/Status-Alpha2-e74c3c" alt="Alpha3">
+  <img src="https://img.shields.io/badge/Loaders-Fabric_%7C_NeoForge_%7C_Forge-e1b12c" alt="Fabric / NeoForge / Forge">
+  <img src="https://img.shields.io/badge/Status-Alpha3-e74c3c" alt="Alpha3">
   <img src="https://img.shields.io/badge/License-MIT-3498db" alt="MIT license">
 </p>
 

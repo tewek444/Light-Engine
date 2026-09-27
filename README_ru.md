@@ -10,9 +10,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-44bd32" alt="Minecraft 1.21.1">
-  <img src="https://img.shields.io/badge/Загрузчики-Fabric_%7C_NeoForge-e1b12c" alt="Fabric и NeoForge">
+  <img src="https://img.shields.io/badge/Загрузчики-Fabric_%7C_NeoForge_%7C_Forge-e1b12c" alt="Fabric, NeoForge и Forge">
   <img src="https://img.shields.io/badge/Java-21-f39c12" alt="Java 21">
-  <img src="https://img.shields.io/badge/Статус-Alpha2-e74c3c" alt="Alpha2">
+  <img src="https://img.shields.io/badge/Статус-Alpha3-e74c3c" alt="Alpha3">
   <img src="https://img.shields.io/badge/Лицензия-MIT-3498db" alt="Лицензия MIT">
 </p>
 
