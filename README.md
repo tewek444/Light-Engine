@@ -47,13 +47,13 @@ One branch per loader — the code lives there, not here:
 | --------- | -------- | ------------ | ------ | -------- |
 | 1.21.1    | Fabric   | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.21.1-fabric.jar) |
 | 1.21.1    | NeoForge | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.21.1-neoforge.jar) |
-| 26.3      | NeoForge | 1.0.0-alpha3 | 🚧     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc26.3-neoforge.jar) |
-| 26.3      | Fabric   | 1.0.0-alpha3 | 🚧     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc26.3-fabric.jar) |
-| 1.20.1    | Fabric   | 1.0.0-alpha3 | 🚧     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.20.1-fabric.jar) |
-| 1.20.1    | Forge    | 1.0.0-alpha3 | 🚧     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.20.1-forge.jar) |
+| 26.3      | NeoForge | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc26.3-neoforge.jar) |
+| 26.3      | Fabric   | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc26.3-fabric.jar) |
+| 1.20.1    | Fabric   | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.20.1-fabric.jar) |
+| 1.20.1    | Forge    | 1.0.0-alpha3 | ✅     | [jar](https://github.com/tewek444/Light-Engine/releases/download/v1.0.0-alpha3/Light-Engine-v1.0.0-alpha3-mc1.20.1-forge.jar) |
 | any       | Quilt    | —            | ❌     | — |
 
-✅ — supported, 🚧 — in development, 📋 — planned, ❌ — not supported.
+✅ — supported, ❌ — not supported.
 
 ## License
 
