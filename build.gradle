@@ -1,0 +1,149 @@
+plugins {
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"light-engine" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+configurations {
+	nestedJars {
+		transitive = false
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	// MC 26.x ships unobfuscated (official names, Mojang no longer publishes
+	// client_mappings), and this build sets fabric.loom.disableObfuscation
+	// (see gradle.properties): Loom then skips mappings/intermediary/remap,
+	// so plain java configurations are used (no modImplementation, same as
+	// fabric-api's own 26.3 build).
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. Required: networking, lifecycle events.
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// MixinExtras (fabric variant) for @ModifyExpressionValue.
+	implementation "io.github.llamalad7:mixinextras-fabric:0.5.5"
+	annotationProcessor "io.github.llamalad7:mixinextras-fabric:0.5.5"
+
+	// NightConfig (TOML), nested into the mod jar.
+	implementation "com.electronwill.night-config:core:3.8.3"
+	implementation "com.electronwill.night-config:toml:3.8.3"
+	nestedJars "com.electronwill.night-config:core:3.8.3"
+	nestedJars "com.electronwill.night-config:toml:3.8.3"
+
+	// ModMenu: compile-only, optional at runtime.
+	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+loom.nestJars(tasks.named("jar"), configurations.nestedJars)
+
+def lightFieldStoreRegressionTest = tasks.register("lightFieldStoreRegressionTest", JavaExec) {
+	dependsOn testClasses
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = "me.tewek.lightengine.lightfield.LightFieldStoreRegressionTest"
+}
+
+tasks.named("test") {
+	dependsOn lightFieldStoreRegressionTest
+	exclude "**/LightFieldStoreRegressionTest.class"
+}
+
+base {
+	archivesName = "lightengine"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	// MC 26.3 ships Java 25.
+	it.options.release = 25
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// Auto-incrementing build number, embedded in the jar file names only
+// (mod metadata keeps the plain version). The counter file is only written
+// when the jar task actually executes, so up-to-date builds never bump it.
+def buildNumberFile = file("build-number.txt")
+if (!buildNumberFile.exists()) {
+	buildNumberFile.text = "0"
+}
+def buildNumber = buildNumberFile.text.trim().toInteger()
+afterEvaluate {
+	tasks.named("jar") {
+		archiveVersion = "${project.version}+build.${buildNumber}"
+		doLast {
+			buildNumberFile.text = "${buildNumber + 1}"
+		}
+	}
+	// No remap tasks in unobfuscated mode (fabric.loom.disableObfuscation):
+	// the plain jar is the final artifact.
+	for (String name : ["remapJar", "remapSourcesJar"]) {
+		if (tasks.findByName(name) != null) {
+			tasks.named(name) {
+				archiveVersion = "${project.version}+build.${buildNumber}"
+			}
+		}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
