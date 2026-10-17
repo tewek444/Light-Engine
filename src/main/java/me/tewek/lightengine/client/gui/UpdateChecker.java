@@ -41,6 +41,8 @@ public final class UpdateChecker {
         FAILED
     }
 
+    /** Release asset of this exact port (Minecraft range + loader). */
+    private static final String ASSET_SUFFIX = "-mc1.21-fabric.jar";
     private static final String API_URL = "https://api.github.com/repos/tewek444/Light-Engine/releases/latest";
 
     private static volatile State state = State.IDLE;
@@ -257,13 +259,9 @@ public final class UpdateChecker {
                 state = State.UPTODATE;
                 return;
             }
-            String token = loaderToken == null ? "" : loaderToken.toLowerCase(Locale.ROOT);
             String pickName = "";
             String pickUrl = "";
             long pickSize = 0;
-            String firstJarName = "";
-            String firstJarUrl = "";
-            long firstJarSize = 0;
             if (root.has("assets") && root.get("assets").isJsonArray()) {
                 for (var element : root.getAsJsonArray("assets")) {
                     if (!element.isJsonObject()) {
@@ -279,23 +277,15 @@ public final class UpdateChecker {
                     if (!name.endsWith(".jar") || url.isEmpty()) {
                         continue;
                     }
-                    if (firstJarUrl.isEmpty()) {
-                        firstJarName = name;
-                        firstJarUrl = url;
-                        firstJarSize = size;
-                    }
-                    if (!token.isEmpty() && name.toLowerCase(Locale.ROOT).contains(token)) {
+                    // Release jars are Light-Engine-v<ver>-<mc range>-<loader>.jar: take
+                    // only this port's own build, never another version's jar.
+                    if (name.toLowerCase(Locale.ROOT).endsWith(ASSET_SUFFIX)) {
                         pickName = name;
                         pickUrl = url;
                         pickSize = size;
                         break;
                     }
                 }
-            }
-            if (pickUrl.isEmpty()) {
-                pickName = firstJarName;
-                pickUrl = firstJarUrl;
-                pickSize = firstJarSize;
             }
             if (pickUrl.isEmpty()) {
                 fail(Component.translatable("lightengine.editor.no_assets").getString());

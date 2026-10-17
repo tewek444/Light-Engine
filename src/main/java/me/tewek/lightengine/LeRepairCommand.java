@@ -28,7 +28,7 @@ import java.util.List;
  * <p>Soundness: light decays by at least 1 per block in every direction, so
  * a cell with value {@code v} is explainable only by a source with emission
  * {@code E} within Manhattan distance {@code E - v}. Everything else is an
- * orphan by definition. Usage: {@code /lerepair [<pos>] [<radius 8..64>]}.</p>
+ * orphan by definition. Usage: {@code /le repair [<pos>] [<radius 8..64>]}.</p>
  */
 public final class LeRepairCommand {
     private LeRepairCommand() {
@@ -38,16 +38,18 @@ public final class LeRepairCommand {
     }
 
     public static void register(com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("lerepair")
-                .requires(src -> src.hasPermission(2))
-                .executes(ctx -> repair(ctx.getSource(), BlockPos.containing(ctx.getSource().getPosition()), 40))
-                .then(Commands.argument("pos", BlockPosArgument.blockPos())
-                        .executes(ctx -> repair(ctx.getSource(),
-                                BlockPosArgument.getLoadedBlockPos(ctx, "pos"), 40))
-                        .then(Commands.argument("radius", IntegerArgumentType.integer(8, 64))
-                                .executes(ctx -> repair(ctx.getSource(),
-                                        BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
-                                        IntegerArgumentType.getInteger(ctx, "radius"))))));
+        for (String root : new String[]{"le", "light_engine"}) {
+            dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal(root).then(LiteralArgumentBuilder.<CommandSourceStack>literal("repair")
+                    .requires(src -> src.hasPermission(2))
+                    .executes(ctx -> repair(ctx.getSource(), BlockPos.containing(ctx.getSource().getPosition()), 40))
+                    .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                            .executes(ctx -> repair(ctx.getSource(),
+                                    BlockPosArgument.getLoadedBlockPos(ctx, "pos"), 40))
+                            .then(Commands.argument("radius", IntegerArgumentType.integer(8, 64))
+                                    .executes(ctx -> repair(ctx.getSource(),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
+                                            IntegerArgumentType.getInteger(ctx, "radius")))))));
+        }
     }
 
     private static int repair(CommandSourceStack src, BlockPos center, int r) {
