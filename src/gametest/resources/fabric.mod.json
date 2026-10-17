@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "lightengine-gametest",
+  "version": "1.0.0",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "me.tewek.lightengine.gametest.ColoredLightClientTest"
+    ]
+  },
+  "depends": {
+    "lightengine": "*"
+  }
+}
