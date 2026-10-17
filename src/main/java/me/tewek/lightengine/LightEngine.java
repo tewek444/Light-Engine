@@ -51,7 +51,7 @@ public class LightEngine implements ModInitializer {
         });
         ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
             try {
-                LightFieldStore.forLevel(level).evictChunk(chunk.getPos().x, chunk.getPos().z);
+                LightFieldStore.forLevel(level).evictAfterSave(level, chunk.getPos().x, chunk.getPos().z);
                 ChromaTint.onChunkUnload(level, chunk.getPos());
             } catch (Exception ex) {
                 LOGGER.debug("Chunk unload cleanup failed at {}", chunk.getPos(), ex);
