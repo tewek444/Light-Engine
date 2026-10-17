@@ -11,13 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server -&gt; client chunk payload, v2 format ({@code lightengine:light_field_data}).
- * Hand-encoded section blobs (section Y + zlib bytes); no NBT, no GZIP.
- * An empty section list is an explicit chunk tombstone. {@link #of(int, int, List)}
- * still returns {@code null} when there is no payload to send.
+ * Server -&gt; client chunk payload, v3 format ({@code lightengine:light_field_data}).
+ * Hand-encoded section blobs (section Y + zlib RGB bytes); no NBT, no GZIP.
+ * Never sent when a chunk has no extended data.
  */
 public record LightFieldPayload(int chunkX, int chunkZ, List<SectionBlob> sections) implements CustomPacketPayload {
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = "3";
 
     private static final int MAX_SECTIONS = 128;
     private static final int MAX_BLOB = 1 << 16;
@@ -63,11 +62,6 @@ public record LightFieldPayload(int chunkX, int chunkZ, List<SectionBlob> sectio
         return TYPE;
     }
 
-    /** Explicit chunk tombstone: clears the client cache for the chunk. */
-    public static LightFieldPayload empty(int chunkX, int chunkZ) {
-        return new LightFieldPayload(chunkX, chunkZ, List.of());
-    }
-
     /** Builds the payload; {@code null} when there is nothing (or too much) to send. */
     public static LightFieldPayload of(int chunkX, int chunkZ, List<SectionBlob> sections) {
         if (sections == null || sections.isEmpty() || sections.size() > MAX_SECTIONS) {
@@ -79,5 +73,10 @@ public record LightFieldPayload(int chunkX, int chunkZ, List<SectionBlob> sectio
             }
         }
         return new LightFieldPayload(chunkX, chunkZ, List.copyOf(sections));
+    }
+
+    /** Clear signal: client must evict the chunk even though there is no data. */
+    public static LightFieldPayload clear(int chunkX, int chunkZ) {
+        return new LightFieldPayload(chunkX, chunkZ, List.of());
     }
 }

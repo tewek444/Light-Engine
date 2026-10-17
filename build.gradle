@@ -12,12 +12,9 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
-
 	mods {
-		"light-engine" {
+		"lightengine" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 }
@@ -57,16 +54,6 @@ dependencies {
 
 loom.nestJars(tasks.named("jar"), configurations.nestedJars)
 
-def lightFieldStoreRegressionTest = tasks.register("lightFieldStoreRegressionTest", JavaExec) {
-	dependsOn testClasses
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = "me.tewek.lightengine.lightfield.LightFieldStoreRegressionTest"
-}
-
-tasks.named("test") {
-	dependsOn lightFieldStoreRegressionTest
-	exclude "**/LightFieldStoreRegressionTest.class"
-}
 
 base {
 	archivesName = "lightengine"
@@ -84,6 +71,7 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
 	// MC 26.3 ships Java 25.
 	it.options.release = 25
+	it.options.compilerArgs += ["-Xmaxerrs", "2000"]
 }
 
 java {
@@ -145,5 +133,17 @@ publishing {
 		// Notice: This block does NOT have the same function as the block in the top level.
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
+	}
+}
+
+// Client gametests (src/gametest): drive a real client without input, for
+// screenshots of the colored light (`./gradlew runClientGameTest`).
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "lightengine-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
 	}
 }

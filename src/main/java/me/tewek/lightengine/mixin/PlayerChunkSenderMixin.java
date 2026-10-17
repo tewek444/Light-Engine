@@ -5,21 +5,20 @@ import me.tewek.lightengine.lightfield.LightField;
 import me.tewek.lightengine.lightfield.LightSectionRange;
 import me.tewek.lightengine.lightfield.SectionBlob;
 import me.tewek.lightengine.network.LightFieldPayload;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.network.PlayerChunkSender;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.chunk.LevelChunk;
-import java.util.List;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 /**
  * Server-only: after a chunk is dispatched, send its extended data as a
- * v2 light-field payload. Sends nothing when the chunk carries no data.
+ * v3 chroma-field payload. Sends nothing when the chunk carries no data.
  */
 @Mixin(PlayerChunkSender.class)
 public abstract class PlayerChunkSenderMixin {
@@ -48,7 +47,7 @@ public abstract class PlayerChunkSenderMixin {
             if (payload == null) {
                 return;
             }
-            ServerPlayNetworking.send(packetListener.getPlayer(), payload);
+            me.tewek.lightengine.platform.Platform.sendToPlayer(packetListener.getPlayer(), payload);
         } catch (Exception ignored) {
         }
     }
