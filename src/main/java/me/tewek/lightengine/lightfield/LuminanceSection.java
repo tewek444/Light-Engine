@@ -11,7 +11,11 @@ import java.util.zip.Inflater;
  * <p>Cells are addressed in Morton (Z-order) sequence instead of the legacy
  * row-major order, so neither the in-memory order nor the persisted bytes
  * match the v1 scheme. Values are 0-255; zero means "no extended light".</p>
+ *
+ * @deprecated Retired by Alpha4 v3 ({@link ChromaSection}); kept only so old
+ *             workspaces still compile. Never read or written at runtime.
  */
+@Deprecated
 public final class LuminanceSection {
     public static final int VOLUME = 16 * 16 * 16;
     public static final int MAX_LEVEL = 255;
@@ -38,7 +42,7 @@ public final class LuminanceSection {
     }
 
     public void set(int x, int y, int z, int level) {
-        cells[morton(x & 15, y & 15, z & 15)] = (byte) Math.min(MAX_LEVEL, Math.max(0, level));
+        cells[morton(x & 15, y & 15, z & 15)] = (byte) net.minecraft.util.Mth.clamp(level, 0, MAX_LEVEL);
     }
 
     public boolean isEmpty() {

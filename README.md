@@ -1,9 +1,19 @@
-# Light Engine
+# Light Engine — Fabric 1.20.1
 
-## Setup
+Source code of Light Engine 1.0.0 for Minecraft 1.20.1 (Fabric).
+Description, screenshots, config and API: see the [main page](https://github.com/tewek444/Light-Engine).
 
-For setup instructions, please see the [Fabric Documentation page](https://docs.fabricmc.net/develop/getting-started/creating-a-project#setting-up) related to the IDE that you are using.
+Исходный код Light Engine 1.0.0 для Minecraft 1.20.1 (Fabric).
+Описание, скриншоты, конфиг и API — на [главной странице](https://github.com/tewek444/Light-Engine/blob/main/README_ru.md).
 
-## License
+## Build / Сборка
 
-This project is licensed under the MIT License. See LICENSE for details.
+```
+./gradlew build
+```
+
+JDK 21. The jar is written to `build/libs`. / Jar появится в `build/libs`.
+
+## License / Лицензия
+
+MIT, see [LICENSE](LICENSE).

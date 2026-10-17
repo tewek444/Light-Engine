@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.At;
  * fully opaque block must stop. This keeps sealed boxes dark and preserves
  * vanilla attenuation for everything else.
  *
- * <p>Note: signal gating lives in {@link LightEngineMixin} (enqueue gate)
- * and the state-aware emission hook — this mixin must not shadow inherited
+ * <p>Note: emission itself comes from {@link BlockStateBaseMixin} and
+ * {@link BlockStateExtensionMixin}; this mixin must not shadow inherited
  * engine fields.
  */
 @Mixin(BlockLightEngine.class)

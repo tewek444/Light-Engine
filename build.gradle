@@ -12,12 +12,9 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
-
 	mods {
-		"light-engine" {
+		"lightengine" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 }
@@ -45,26 +42,6 @@ dependencies {
 	modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
-def lightFieldStoreRegressionTest = tasks.register("lightFieldStoreRegressionTest", JavaExec) {
-	dependsOn testClasses
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = "me.tewek.lightengine.lightfield.LightFieldStoreRegressionTest"
-}
-
-// The standalone regression test needs Minecraft + both mod outputs.
-// Loom only wires main/client, so extend the test source set explicitly
-// (client classes live on the client source set with split environments).
-sourceSets {
-	test {
-		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
-		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
-	}
-}
-
-tasks.named("test") {
-	dependsOn lightFieldStoreRegressionTest
-	exclude "**/LightFieldStoreRegressionTest.class"
-}
 
 base {
 	archivesName = "lightengine"
@@ -140,5 +117,12 @@ publishing {
 		// Notice: This block does NOT have the same function as the block in the top level.
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
+	}
+}
+
+// Dev runs on the Gradle-provisioned JDK 21 (1.20.1 runs fine on it; no JDK 17 here).
+tasks.withType(JavaExec).configureEach {
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }

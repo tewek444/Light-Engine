@@ -2,7 +2,6 @@ package me.tewek.lightengine.mixin;
 
 import me.tewek.lightengine.LightProfileRegistry;
 import me.tewek.lightengine.lightfield.LightField;
-import me.tewek.lightengine.lightfield.LightFieldStore;
 import me.tewek.lightengine.lightfield.LightSectionRange;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -27,13 +26,11 @@ public abstract class ChunkSerializerMixin {
     private static void lightengine$onWrite(ServerLevel level,
                                             ChunkAccess chunk,
                                             CallbackInfoReturnable<CompoundTag> cir) {
-        CompoundTag tag = cir.getReturnValue();
-        if (tag == null || level == null || chunk == null) {
+        if (!LightProfileRegistry.isEnabled()) {
             return;
         }
-        if (!LightProfileRegistry.isEnabled()) {
-            tag.remove(LightFieldStore.NBT_KEY);
-            tag.remove("lightengine:extended_light");
+        CompoundTag tag = cir.getReturnValue();
+        if (tag == null || level == null || chunk == null) {
             return;
         }
         try {
@@ -52,6 +49,12 @@ public abstract class ChunkSerializerMixin {
                                            CompoundTag tag,
                                            CallbackInfoReturnable<ProtoChunk> cir) {
         if (tag == null || level == null || pos == null) {
+            return;
+        }
+        // Vanilla drops stored light when it must relight the chunk (version
+        // upgrade, interrupted lighting). Stale extended cells would then read
+        // as "already lit" and stop the relight wave: skip them too.
+        if (cir.getReturnValue() == null || !cir.getReturnValue().isLightCorrect()) {
             return;
         }
         try {
