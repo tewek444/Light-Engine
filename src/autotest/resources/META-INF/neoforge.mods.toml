@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="lightengine_autotest"
+version="1.0.0"
+displayName="Light Engine Autotest (dev only)"
+description="Drives a scripted scene and saves screenshots, then quits. Dev runs only."
+
+[[dependencies.lightengine_autotest]]
+modId="lightengine"
+type="required"
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
