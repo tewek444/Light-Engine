@@ -31,6 +31,16 @@ public class ColoredLightClientTest implements FabricClientGameTest {
             server.runCommand("tp @p 0.5 -56 -9.5 0 30");
             context.waitTicks(60);
             context.takeScreenshot("le_lantern_on");
+            // Commands typed by the player: client subcommand runs locally,
+            // server subcommand under the same /le root must reach the server.
+            server.runOnServer(srv -> srv.getPlayerList().getPlayers().forEach(p -> srv.getPlayerList().op(p.nameAndId())));
+            context.waitTicks(5);
+            context.runOnClient(mc -> mc.player.connection.sendCommand("le light_level"));
+            context.waitTicks(10);
+            context.takeScreenshot("le_cmd_overlay");
+            context.runOnClient(mc -> mc.player.connection.sendCommand("light_engine light_level"));
+            context.runOnClient(mc -> mc.player.connection.sendCommand("le dump 0 -60 0"));
+            context.waitTicks(10);
             context.runOnClient(mc -> diagnose(mc));
             server.runCommand("setblock -6 -60 -2 minecraft:torch");
             context.waitTicks(40);
