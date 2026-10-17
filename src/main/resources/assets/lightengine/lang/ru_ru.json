@@ -37,7 +37,7 @@
   "lightengine.editor.signal_off": "выкл",
   "lightengine.editor.no_world": "Для сцены нужен открытый мир",
   "lightengine.editor.no_item": "Нет предмета, показано стекло",
-  "lightengine.editor.denied": "LightEngine: нужны права оператора сервера.",
+  "lightengine.editor.denied": "LightEngine: менять настройки света может только владелец сервера (оператор уровня 4).",
   "lightengine.editor.applied": "LightEngine: радиус %s установлен на %s",
   "lightengine.editor.pause_button": "Light Engine",
   "lightengine.editor.open_editor": "Редактор...",
