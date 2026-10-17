@@ -126,3 +126,14 @@ tasks.withType(JavaExec).configureEach {
 		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
+// Client gametests (src/gametest): drive a real client without input, for
+// screenshots of the colored light (`./gradlew runClientGameTest`).
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "lightengine-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}

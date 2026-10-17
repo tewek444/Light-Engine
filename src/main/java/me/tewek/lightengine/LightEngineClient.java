@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import me.tewek.lightengine.client.ColorLightEnv;
 import me.tewek.lightengine.client.LeClientDump;
 import me.tewek.lightengine.client.LightOverlayRenderer;
+import me.tewek.lightengine.client.OverlayRenderHook;
 import me.tewek.lightengine.client.gui.UpdateChecker;
 import me.tewek.lightengine.lightfield.ChromaTint;
 import me.tewek.lightengine.lightfield.LightField;
@@ -19,10 +20,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.phys.Vec3;
 
 /** Fabric client entrypoint: payload receivers, client events, client commands, overlay. */
 public class LightEngineClient implements ClientModInitializer {
@@ -54,14 +53,11 @@ public class LightEngineClient implements ClientModInitializer {
                 LightEngine.LOGGER.debug("Colored light env tick failed", ex);
             }
         });
-        WorldRenderEvents.END_MAIN.register(context -> {
-            if (!LightOverlayRenderer.isEnabled() || context.matrices() == null) {
-                return;
-            }
-            Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-            LightOverlayRenderer.render(context.matrices(), cam.x, cam.y, cam.z,
-                    Minecraft.getInstance().renderBuffers().bufferSource());
-        });
+        try {
+            OverlayRenderHook.register();
+        } catch (LinkageError ex) {
+            LightEngine.LOGGER.warn("Fabric API without rendering.v1.world events (1.21.9): light-level overlay disabled");
+        }
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommandManager.literal("lightengine")
                     .then(ClientCommandManager.literal("light_level").executes(ctx -> {
