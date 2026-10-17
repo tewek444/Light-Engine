@@ -60,7 +60,9 @@ public abstract class SerializableChunkDataMixin {
             if (blobs != null) {
                 LE_PENDING.put(data, blobs);
             }
-        } catch (Exception ignored) {
+            me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkSaved(pos.x(), pos.z());
+        } catch (Exception ex) {
+            lightengine$warnOnce("encode", ex);
         }
     }
 
@@ -84,7 +86,8 @@ public abstract class SerializableChunkDataMixin {
             }
             tag.put(LightFieldStore.NBT_KEY, list);
             tag.remove(LEGACY_NBT_KEY);
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            lightengine$warnOnce("write", ex);
         }
     }
 
@@ -100,6 +103,7 @@ public abstract class SerializableChunkDataMixin {
         if (data == null) {
             return;
         }
+        me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkLoaded(data.chunkPos().x(), data.chunkPos().z());
         // Vanilla drops stored light when it must relight the chunk (version
         // upgrade, interrupted lighting). Stale extended cells would then read
         // as "already lit" and stop the relight wave: skip them too.
@@ -109,7 +113,17 @@ public abstract class SerializableChunkDataMixin {
         try {
             ChunkPos pos = data.chunkPos();
             LightField.readChunk(level, tag, pos.x(), pos.z());
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            lightengine$warnOnce("read", ex);
+        }
+    }
+
+    private static volatile boolean lightengine$warned;
+
+    private static void lightengine$warnOnce(String stage, Exception ex) {
+        if (!lightengine$warned) {
+            lightengine$warned = true;
+            me.tewek.lightengine.LightEngine.LOGGER.warn("Extended light chunk {} failed; that chunk keeps vanilla light", stage, ex);
         }
     }
 }
