@@ -20,6 +20,7 @@
     "LiquidBlockRendererMixin",
     "PauseScreenMixin",
     "sodium.SodiumBlockRendererMixin",
+    "sodium.Sodium05BlockRendererMixin",
     "IndigoBlockRenderContextMixin",
     "IndigoAoLightMixin"
   ],
