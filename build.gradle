@@ -9,6 +9,16 @@ repositories {
 		name = "Terraformers"
 		url = "https://maven.terraformersmc.com/"
 	}
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+		content { includeGroup "maven.modrinth" }
+	}
+}
+
+// Optional dev-only Sodium for testing the Sodium hook: `-Ple.sodium=mc26.1.1-0.8.9-fabric`.
+configurations {
+	devSodium
 }
 
 loom {
@@ -50,6 +60,26 @@ dependencies {
 
 	// ModMenu: compile-only, optional at runtime.
 	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+if (project.hasProperty("le.sodium")) {
+	dependencies {
+		devSodium "maven.modrinth:sodium:${project.property('le.sodium')}"
+	}
+	tasks.matching { it.name == "runClient" || it.name == "runClientGameTest" }.configureEach {
+		classpath += configurations.devSodium
+		jvmArgs "-Dsodium.checks.issue2561=false"
+	}
+}
+
+if (project.hasProperty("le.sodium")) {
+	dependencies {
+		devSodium "maven.modrinth:sodium:${project.property('le.sodium')}"
+	}
+	tasks.matching { it.name == "runClient" || it.name == "runClientGameTest" }.configureEach {
+		classpath += configurations.devSodium
+		jvmArgs "-Dsodium.checks.issue2561=false"
+	}
 }
 
 loom.nestJars(tasks.named("jar"), configurations.nestedJars)
