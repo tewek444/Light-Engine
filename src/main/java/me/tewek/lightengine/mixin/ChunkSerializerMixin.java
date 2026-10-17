@@ -38,6 +38,7 @@ public abstract class ChunkSerializerMixin {
             ChunkPos pos = chunk.getPos();
             LightField.writeChunk(level, tag, pos.x, pos.z,
                     LightSectionRange.minSection(level), LightSectionRange.maxSection(level));
+            me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkSaved(pos.x, pos.z);
         } catch (Exception ignored) {
         }
     }
@@ -53,6 +54,7 @@ public abstract class ChunkSerializerMixin {
         if (tag == null || level == null || pos == null) {
             return;
         }
+        me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkLoaded(pos.x, pos.z);
         // Vanilla drops stored light when it must relight the chunk (version
         // upgrade, interrupted lighting). Stale extended cells would then read
         // as "already lit" and stop the relight wave: skip them too.
