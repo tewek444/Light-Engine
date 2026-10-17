@@ -38,7 +38,7 @@ public class LightEngine implements ModInitializer {
 
         ServerPlayNetworking.registerGlobalReceiver(ProfileUpdatePayload.TYPE, (server, player, handler, buf, sender) -> {
             ProfileUpdatePayload payload = ProfileUpdatePayload.read(buf);
-            server.execute(() -> ProfileUpdateHandler.handle(player, payload.id(),
+            server.execute(() -> ProfileUpdateHandler.handle(player, payload.block(),
                     payload.radius(), payload.ignoreConditions(), payload.color(), payload.tintEnabled()));
         });
 
