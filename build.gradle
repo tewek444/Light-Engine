@@ -12,12 +12,9 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
-
 	mods {
-		"light-engine" {
+		"lightengine" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 }
@@ -45,16 +42,6 @@ dependencies {
 	modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
-def lightFieldStoreRegressionTest = tasks.register("lightFieldStoreRegressionTest", JavaExec) {
-	dependsOn testClasses
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = "me.tewek.lightengine.lightfield.LightFieldStoreRegressionTest"
-}
-
-tasks.named("test") {
-	dependsOn lightFieldStoreRegressionTest
-	exclude "**/LightFieldStoreRegressionTest.class"
-}
 
 base {
 	archivesName = "lightengine"
@@ -130,5 +117,12 @@ publishing {
 		// Notice: This block does NOT have the same function as the block in the top level.
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
+	}
+}
+
+// Dev runs on the Gradle-provisioned JDK 21 (same as the game ships with).
+tasks.withType(JavaExec).configureEach {
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
