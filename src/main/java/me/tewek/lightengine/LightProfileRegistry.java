@@ -170,6 +170,10 @@ public final class LightProfileRegistry {
         if (p.ignoreConditions()) {
             return capped;
         }
+        if (state.hasProperty(BlockStateProperties.CANDLES)) {
+            // The radius is for four candles; fewer candles shine less, never below vanilla.
+            capped = Math.max(original, Math.round(capped * state.getValue(BlockStateProperties.CANDLES) / 4.0F));
+        }
         if (state.hasProperty(BlockStateProperties.LIT)) {
             return Boolean.TRUE.equals(state.getValue(BlockStateProperties.LIT)) ? capped : original;
         }
