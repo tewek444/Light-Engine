@@ -96,7 +96,17 @@ without restarting. One block looks like this:
 - `light_color`: `#RRGGBB`. `light_color_enabled = false` keeps the vanilla color.
 - `ignore_conditions`: the block shines even when it is "off" (`lit=false` / `powered=false`).
 
-Commands: `/lightengine light_level` toggles the light level overlay (client side).
+## Commands
+
+All commands live under `/le` (or the long form `/light_engine`):
+
+| Command | Who | What it does |
+| --- | --- | --- |
+| `/le light_level` | anyone | Toggles the light level overlay (numbers on block faces, extended levels shown as-is) |
+| `/le update_check` | anyone | Checks GitHub for a newer version of this build |
+| `/le repair [pos] [radius]` | operator | Re-checks stale extended light around a position (radius 8–64, default 40) |
+| `/le dump <x> <y> <z>` | operator | Writes the extended light around a position to chat and the log (debugging) |
+| `/le dump_client` | anyone | Same, from the client's copy of the light (debugging) |
 
 ## For mod developers
 
