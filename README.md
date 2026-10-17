@@ -34,17 +34,21 @@
 
 ## Screenshots
 
+### Vanilla
+
+<p align="center"><img src="docs/vanilla.png" width="80%" alt="Vanilla light"></p>
+
 ### Radius
 
-| Vanilla (radius 15) | Light Engine (radius 30) | Light Engine (radius 60) |
-| :---: | :---: | :---: |
-| <!-- ![](docs/radius_15.png) --> *screenshot* | <!-- ![](docs/radius_30.png) --> *screenshot* | <!-- ![](docs/radius_60.png) --> *screenshot* |
+| Light Engine (radius 30) | Light Engine (radius 60) |
+| :---: | :---: |
+| <img src="docs/radius_30.png" alt="Radius 30"> | <img src="docs/radius_60.png" alt="Radius 60"> |
 
 ### Color
 
-| Vanilla | Colored light | Mixing sources |
-| :---: | :---: | :---: |
-| <!-- ![](docs/color_vanilla.png) --> *screenshot* | <!-- ![](docs/color_single.png) --> *screenshot* | <!-- ![](docs/color_mix.png) --> *screenshot* |
+| Colored light | Mixing sources |
+| :---: | :---: |
+| <img src="docs/color.png" alt="Colored light"> | <img src="docs/color_mix.png" alt="Mixing sources"> |
 
 ## Compatibility
 

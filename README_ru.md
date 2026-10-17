@@ -34,17 +34,21 @@
 
 ## Скриншоты
 
+### Ваниль
+
+<p align="center"><img src="docs/vanilla.png" width="80%" alt="Ванильный свет"></p>
+
 ### Радиус
 
-| Ваниль (радиус 15) | Light Engine (радиус 30) | Light Engine (радиус 60) |
-| :---: | :---: | :---: |
-| <!-- ![](docs/radius_15.png) --> *скриншот* | <!-- ![](docs/radius_30.png) --> *скриншот* | <!-- ![](docs/radius_60.png) --> *скриншот* |
+| Light Engine (радиус 30) | Light Engine (радиус 60) |
+| :---: | :---: |
+| <img src="docs/radius_30.png" alt="Радиус 30"> | <img src="docs/radius_60.png" alt="Радиус 60"> |
 
 ### Цвет
 
-| Ваниль | Цветной свет | Смешение источников |
-| :---: | :---: | :---: |
-| <!-- ![](docs/color_vanilla.png) --> *скриншот* | <!-- ![](docs/color_single.png) --> *скриншот* | <!-- ![](docs/color_mix.png) --> *скриншот* |
+| Цветной свет | Смешение источников |
+| :---: | :---: |
+| <img src="docs/color.png" alt="Цветной свет"> | <img src="docs/color_mix.png" alt="Смешение источников"> |
 
 ## Совместимость
 
