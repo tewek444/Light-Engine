@@ -13,7 +13,7 @@ import net.minecraft.world.level.LightLayer;
 /**
  * Diagnostic command: dumps non-zero v2 cells plus vanilla brightness in a
  * cube, to the log and (for players) to chat. Usage:
- * {@code /ledump <x> <y> <z>}. Raw integer coordinates on purpose: block-pos
+ * {@code /le dump <x> <y> <z>}. Raw integer coordinates on purpose: block-pos
  * arguments reject positions outside the world, but extended light
  * legitimately lives in the padding sections below/above it.
  */
@@ -22,16 +22,18 @@ public final class LeDumpCommand {
     }
 
     public static void register(com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("ledump")
-                .then(Commands.argument("x", IntegerArgumentType.integer())
-                        .then(Commands.argument("y", IntegerArgumentType.integer())
-                                .then(Commands.argument("z", IntegerArgumentType.integer())
-                                        .executes(ctx -> dump(ctx.getSource(),
-                                                new BlockPos(
-                                                        IntegerArgumentType.getInteger(ctx, "x"),
-                                                        IntegerArgumentType.getInteger(ctx, "y"),
-                                                        IntegerArgumentType.getInteger(ctx, "z")),
-                                                24))))));
+        for (String root : new String[]{"le", "light_engine"}) {
+            dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal(root).then(LiteralArgumentBuilder.<CommandSourceStack>literal("dump").requires(src -> src.hasPermission(2))
+                    .then(Commands.argument("x", IntegerArgumentType.integer())
+                            .then(Commands.argument("y", IntegerArgumentType.integer())
+                                    .then(Commands.argument("z", IntegerArgumentType.integer())
+                                            .executes(ctx -> dump(ctx.getSource(),
+                                                    new BlockPos(
+                                                            IntegerArgumentType.getInteger(ctx, "x"),
+                                                            IntegerArgumentType.getInteger(ctx, "y"),
+                                                            IntegerArgumentType.getInteger(ctx, "z")),
+                                                    24)))))));
+        }
     }
 
     private static int dump(CommandSourceStack src, BlockPos center, int r) {
