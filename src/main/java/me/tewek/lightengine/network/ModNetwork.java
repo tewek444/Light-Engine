@@ -62,7 +62,7 @@ public final class ModNetwork {
     private static void handleProfile(ProfileUpdatePayload payload, Supplier<NetworkEvent.Context> ctx) {
         ServerPlayer player = ctx.get().getSender();
         if (player != null) {
-            ProfileUpdateHandler.handle(player, payload.id(), payload.radius(), payload.ignoreConditions(),
+            ProfileUpdateHandler.handle(player, payload.block(), payload.radius(), payload.ignoreConditions(),
                     payload.color(), payload.tintEnabled());
         }
         ctx.get().setPacketHandled(true);
