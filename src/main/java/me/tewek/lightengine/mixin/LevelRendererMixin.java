@@ -24,7 +24,7 @@ public abstract class LevelRendererMixin {
     private static void lightengine$clampBlockLight(LevelRenderer.BrightnessGetter getter, BlockAndTintGetter level, BlockState state, BlockPos pos,
                                                    CallbackInfoReturnable<Integer> cir) {
         int packed = cir.getReturnValue();
-        int block = LightTexture.block(packed);
+        int block = (packed & 0xFFFF) >>> 4; // raw field: block() masks to 4 bits
         if (block > 15) {
             cir.setReturnValue(LightTexture.pack(15, LightTexture.sky(packed)));
         }
