@@ -209,7 +209,32 @@ public final class Config {
             }
             root.set("preset", mode.key);
             root.set("preset_applied", true);
+            root.set("preset_revision", LightPresets.REVISION);
             changed = true;
+        }
+        // Newer mod version with new preset rows (new light blocks): add only
+        // the blocks the config does not have yet, never touch existing ones.
+        if (root.get("preset_applied") instanceof Boolean) {
+            int revision = root.get("preset_revision") instanceof Number n ? n.intValue() : 1;
+            if (revision < LightPresets.REVISION) {
+                Object presetRaw = root.get("preset");
+                LightPresets.Mode mode = LightPresets.Mode.byKey(presetRaw instanceof String ps ? ps : null);
+                for (var e : LightPresets.build(mode, revision).entrySet()) {
+                    if (fresh.containsKey(e.getKey())) {
+                        continue;
+                    }
+                    LightProfileRegistry.Profile p = e.getValue();
+                    CommentedConfig table = root.createSubConfig();
+                    table.set("light_radius", p.lightRadius());
+                    table.set("light_color", LightProfileRegistry.formatColor(p.color()));
+                    table.set("light_color_enabled", p.tintEnabled());
+                    table.set("ignore_conditions", p.ignoreConditions());
+                    root.set(java.util.List.of(e.getKey().toString()), table);
+                    fresh.put(e.getKey(), p);
+                }
+                root.set("preset_revision", LightPresets.REVISION);
+                changed = true;
+            }
         }
         LightProfileRegistry.apply(enabled, cnflvl, fresh);
         StringBuilder detail = new StringBuilder();
