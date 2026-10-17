@@ -1278,18 +1278,18 @@ public class LightEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-        return this.le$mouseClicked(event.x(), event.y(), event.button()) || super.mouseClicked(event, doubleClick);
+        return this.le$mouseClicked(event.x(), event.y(), le$button(event.button())) || super.mouseClicked(event, doubleClick);
     }
 
     @Override
     public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dragX, double dragY) {
-        return this.le$mouseDragged(event.x(), event.y(), event.button(), dragX, dragY)
+        return this.le$mouseDragged(event.x(), event.y(), le$button(event.button()), dragX, dragY)
                 || super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
     public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
-        return this.le$mouseReleased(event.x(), event.y(), event.button()) || super.mouseReleased(event);
+        return this.le$mouseReleased(event.x(), event.y(), le$button(event.button())) || super.mouseReleased(event);
     }
 
     @Override
@@ -1300,5 +1300,19 @@ public class LightEditorScreen extends Screen {
     @Override
     public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
         return this.le$charTyped((char) event.codepoint(), 0) || super.charTyped(event);
+    }
+
+    /** Widgets use GLFW numbering (0 left, 1 right, 2 middle); 26.3+ input is SDL (1 left, 3 right). */
+    private static int le$button(int button) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
+            return 0;
+        }
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) {
+            return 1;
+        }
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE) {
+            return 2;
+        }
+        return button;
     }
 }
