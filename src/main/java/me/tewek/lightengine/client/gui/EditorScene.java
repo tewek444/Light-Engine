@@ -1,16 +1,15 @@
 package me.tewek.lightengine.client.gui;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import org.joml.Matrix3x2fStack;
 
 /**
  * 2.5D isometric night-preview diorama: a flat grass field seen from the top
@@ -19,13 +18,11 @@ import org.joml.Matrix3x2fStack;
  * <p>Layout mirrors alpha3 ({@code FIELD_Y = 2} grass top with a two-block
  * stone body, selected block on the center cell {@code x = z = 1}, field
  * {@code (2H+1)^2} with {@code H = max(radius, 1)}), but every visual is drawn
- * with 2D primitives only ({@code fill}/{@code text}/{@code centeredText}/
- * {@code item}), because the 26.3 client jar no longer ships the old 3D
- * track ({@code BlockRenderDispatcher}, {@code Lighting}, {@code LightTexture},
- * old {@code RenderType}, {@code InventoryScreen#renderEntityInInventory}).
+ * with 2D primitives only ({@code fill}/{@code drawString}/
+ * {@code drawCenteredString}/{@code renderItem}).
  *
- * <p>Kept 1:1 from alpha3: camera constants, zoom/pan math, grow/shrink
- * animation state machine, camera fit + ease, level arithmetic
+ * <p>Kept 1:1 from the 26.3 scene: camera constants, zoom/pan math,
+ * grow/shrink animation state machine, camera fit + ease, level arithmetic
  * ({@code max(0, R - manhattan)} flood-fill falloff, one extra step down from
  * the pedestal), overlay thresholds, shade alpha, label stride, caption,
  * legend, {@code savedRadius}/{@code avoid} handling.
@@ -35,6 +32,10 @@ import org.joml.Matrix3x2fStack;
  * per-pixel top-face shade pass is one translucent black diamond per cell;
  * the pedestal shows the block's 2D item sprite (or a glass diamond when the
  * block has no item) instead of a rendered voxel.
+ *
+ * <p>Forge 1.20.1 notes: draws through {@link GuiGraphicsExtractor} (no strata, no
+ * render pipelines), the baked field goes through a {@link DynamicTexture}
+ * blit, and all clamps avoid {@code Math.clamp} (Java 17 has none).
  *
  * @param savedRadius saved (registry) emission, shown when preview differs
  * @param avoid popup rect {x, y, w, h} numbers must not cover, or null
@@ -86,21 +87,21 @@ public final class EditorScene {
             return;
         }
         float factor = (float) Math.pow(1.15, amount);
-        float next = Math.clamp(sceneZoom * factor, MIN_ZOOM, MAX_ZOOM);
+        float next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, sceneZoom * factor));
         float k = next / sceneZoom;
         float bx = baseCenterX(x, w);
         float by = baseCenterY(y, h);
         sceneOx = (float) (mouseX - bx - (mouseX - bx - sceneOx) * k);
         sceneOy = (float) (mouseY - by - (mouseY - by - sceneOy) * k);
-        sceneOx = Math.clamp(sceneOx, -w, w);
-        sceneOy = Math.clamp(sceneOy, -h, h);
+        sceneOx = Math.min(w, Math.max(-w, sceneOx));
+        sceneOy = Math.min(h, Math.max(-h, sceneOy));
         sceneZoom = next;
     }
 
     /** Ctrl+drag pan in screen pixels. */
     public static void panBy(double dx, double dy, int w, int h) {
-        sceneOx = Math.clamp((float) (sceneOx + dx), -w, w);
-        sceneOy = Math.clamp((float) (sceneOy + dy), -h, h);
+        sceneOx = Math.min(w, Math.max(-w, (float) (sceneOx + dx)));
+        sceneOy = Math.min(h, Math.max(-h, (float) (sceneOy + dy)));
     }
 
     /** Grow/shrink animation (settings toggle), off by default. */
@@ -174,8 +175,7 @@ public final class EditorScene {
 
     // ----- flat-fill palette -----
 
-    private static final int GRASS_TOP = 0xFF74B34A;
-    private static final int STONE_LEFT = 0xFF76767C;
+        private static final int STONE_LEFT = 0xFF76767C;
     private static final int STONE_RIGHT = 0xFF606066;
 
     /** Nominal tile size, kept for API compatibility. */
@@ -195,12 +195,11 @@ public final class EditorScene {
 
     /**
      * Block-light nibble for one cell, always the world-like night falloff
-     * (block level clamped to the lightmap range like in the world). Without
-     * {@code LightTexture} this is just the clamped level; callers that draw
-     * keep the raw 0..255 value separately.
+     * (block level clamped to the lightmap range like in the world). Callers
+     * that draw keep the raw 0..255 value separately.
      */
     private static int packedFor(int level) {
-        return Math.clamp(level, 0, 15);
+        return Math.min(15, Math.max(0, level));
     }
 
     /** Same thresholds as the in-game light overlay command (opaque). */
@@ -237,24 +236,21 @@ public final class EditorScene {
     private static DynamicTexture bakeTex;
     private static boolean bakeRegistered;
     // Last baked inputs; animation forces a re-bake every frame while flying.
-    private static int bakeX, bakeY, bakeW, bakeH, bakeRadius;
+    private static int bakeX, bakeY, bakeW, bakeH, bakeRadius, bakeTint;
     private static float bakeZoom, bakeOx, bakeOy, bakeScale;
 
     private static void ensureBake(int w, int h) {
         if (bakeImg != null && (bakeImg.getWidth() != w || bakeImg.getHeight() != h)) {
-            // 26.3 upload() rejects size changes, so drop the GPU texture too
-            // and register a fresh one below under the same id.
             bakeImg.close();
             bakeImg = null;
-            if (bakeTex != null) {
-                bakeTex.close();
-                bakeTex = null;
-                bakeRegistered = false;
-            }
         }
         if (bakeImg == null) {
             bakeImg = new NativeImage(NativeImage.Format.RGBA, w, h, false);
-            bakeTex = new DynamicTexture(() -> "lightengine_scene", bakeImg);
+            if (bakeTex != null) {
+                bakeTex.setPixels(bakeImg);
+            } else {
+                bakeTex = new DynamicTexture(() -> "lightengine:scene_field", bakeImg);
+            }
             if (!bakeRegistered) {
                 Minecraft.getInstance().getTextureManager().register(IMG_ID, bakeTex);
                 bakeRegistered = true;
@@ -262,22 +258,86 @@ public final class EditorScene {
         }
     }
 
-    private static int argbToAbgr(int c) {
-        return (c & 0xFF000000) | ((c & 0xFF) << 16) | (c & 0xFF00) | ((c >> 16) & 0xFF);
+    /** Swap R and B channels (ABGR int <-> RGBA int, alpha untouched). */
+    /** NativeImage#setPixel takes ARGB from 1.21.2 on. */
+    private static int abgrToArgb(int c) {
+        return (c & 0xFF00FF00) | ((c & 0xFF) << 16) | ((c >> 16) & 0xFF);
+    }
+
+    private static int abgrToRgba(int c) {
+        // NativeImage#setPixelRGBA takes ABGR in 1.21.1: no swap (the old
+        // swap rendered every hue with red and blue exchanged).
+        return c;
+    }
+
+    /** Neutral floor (white-concrete albedo) so the preview shows the light's true hue. */
+    private static final float FLOOR_R = 0xCF / 255.0F;
+    private static final float FLOOR_G = 0xD3 / 255.0F;
+    private static final float FLOOR_B = 0xD4 / 255.0F;
+    /** Ambient floor so unlit cells stay readable (the scene has no sky). */
+    private static final float SCENE_AMBIENT = 0.12F;
+    private static me.tewek.lightengine.lightfield.LightmapModel.Env sceneEnv;
+    private static float sceneEnvGamma = Float.NaN;
+    private static final float[] SCENE_RGB = new float[3];
+
+    /** Bake cache key: tint (or -1) plus everything the floor shade depends on. */
+    private static int bakeKey(int tintRgb) {
+        int k = tintRgb < 0 ? 0x1000000 : tintRgb & 0xFFFFFF;
+        k = k * 31 + me.tewek.lightengine.Config.colorStrength();
+        float gamma = 0.5F;
+        try {
+            gamma = Minecraft.getInstance().options.gamma().get().floatValue();
+        } catch (RuntimeException ignored) {
+            // default brightness
+        }
+        return k * 31 + Float.floatToIntBits(gamma);
+    }
+
+    private static me.tewek.lightengine.lightfield.LightmapModel.Env sceneEnv() {
+        float gamma = 0.5F;
+        try {
+            gamma = Minecraft.getInstance().options.gamma().get().floatValue();
+        } catch (RuntimeException ignored) {
+            // keep the default brightness
+        }
+        if (sceneEnv == null || gamma != sceneEnvGamma) {
+            sceneEnv = me.tewek.lightengine.lightfield.LightmapModel.env(0.2F, 0.0F, gamma, false);
+            sceneEnvGamma = gamma;
+        }
+        return sceneEnv;
     }
 
     /**
-     * Opaque pre-darkened grass for the shade pass. The old code drew black
-     * with alpha {@code shadeA = (1 - min(v,15)/15) * SHADE_MAX} over grass;
-     * on the opaque frame that equals grass scaled by {@code 1 - shadeA},
-     * and opaque avoids double-darkening where cells overlap mid-animation.
+     * Opaque floor color of one cell, lit exactly like the world: the same
+     * lightmap model the terrain hook uses ({@code LightmapModel}), enclosed
+     * (no sky) so the hue reads undiluted. {@code tintRgb < 0} previews the
+     * vanilla warm light (tint switched off).
      */
-    private static int shadedTopAbgr(int level) {
-        float k = 0.5F + Math.min(level, 15) / 30.0F;
-        int r = (int) ((GRASS_TOP >> 16 & 0xFF) * k);
-        int g = (int) ((GRASS_TOP >> 8 & 0xFF) * k);
-        int b = (int) ((GRASS_TOP & 0xFF) * k);
-        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    private static int shadedTopAbgr(int level, int tintRgb) {
+        me.tewek.lightengine.lightfield.LightmapModel.Env env = sceneEnv();
+        int u = Math.min(15, Math.max(0, level)) * 16;
+        float[] c = SCENE_RGB;
+        if (tintRgb < 0 || level <= 0) {
+            me.tewek.lightengine.lightfield.LightmapModel.sample(env, u, 0, c);
+        } else {
+            float hr = ((tintRgb >> 16) & 0xFF) / 255.0F;
+            float hg = ((tintRgb >> 8) & 0xFF) / 255.0F;
+            float hb = (tintRgb & 0xFF) / 255.0F;
+            float peak = Math.max(hr, Math.max(hg, hb));
+            if (peak <= 0.0F) {
+                me.tewek.lightengine.lightfield.LightmapModel.sample(env, u, 0, c);
+            } else {
+                me.tewek.lightengine.lightfield.LightmapModel.sampleColored(env, u, 0,
+                        hr / peak, hg / peak, hb / peak, me.tewek.lightengine.Config.colorStrength() / 100.0F, c);
+            }
+        }
+        int ri = Math.round(255.0F * FLOOR_R * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[0]));
+        int gi = Math.round(255.0F * FLOOR_G * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[1]));
+        int bi = Math.round(255.0F * FLOOR_B * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[2]));
+        ri = Math.min(255, Math.max(0, ri));
+        gi = Math.min(255, Math.max(0, gi));
+        bi = Math.min(255, Math.max(0, bi));
+        return 0xFF000000 | (bi << 16) | (gi << 8) | ri;
     }
 
     // ----- 2D isometric projection -----
@@ -305,11 +365,17 @@ public final class EditorScene {
 
     public static void render(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
                               Block center, int radius, boolean showLevels) {
-        render(graphics, x, y, w, h, center, radius, radius, showLevels, null);
+        render(graphics, x, y, w, h, center, radius, radius, showLevels, null, 0xFFFFFF);
     }
 
     public static void render(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
                               Block center, int radius, int savedRadius, boolean showLevels, int[] avoid) {
+        render(graphics, x, y, w, h, center, radius, savedRadius, showLevels, avoid, 0xFFFFFF);
+    }
+
+    public static void render(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
+                              Block center, int radius, int savedRadius, boolean showLevels, int[] avoid,
+                              int tintRgb) {
         LeTheme.frame(graphics, x, y, w, h, 0xFF101014, LeTheme.PANEL_BORDER);
 
         int innerX = x + PAD;
@@ -425,14 +491,12 @@ public final class EditorScene {
         // inner layout rect.
         int clipW = clipX1 - clipX0;
         int clipH = clipY1 - clipY0;
-        if (clipW <= 0 || clipH <= 0) {
-            return;
-        }
 
         boolean flying = animEnabled && animToHalf >= 0 && now < animEnd();
         boolean dirty = bakeImg == null
                 || bakeW != clipW || bakeH != clipH
                 || bakeX != clipX0 || bakeY != clipY0 || bakeRadius != radius
+                || bakeTint != bakeKey(tintRgb)
                 || bakeZoom != sceneZoom || bakeOx != sceneOx || bakeOy != sceneOy
                 || bakeScale != smoothScale || flying;
         if (dirty) {
@@ -442,18 +506,18 @@ public final class EditorScene {
             bakeW = clipW;
             bakeH = clipH;
             bakeRadius = radius;
+            bakeTint = bakeKey(tintRgb);
             bakeZoom = sceneZoom;
             bakeOx = sceneOx;
             bakeOy = sceneOy;
             bakeScale = smoothScale;
             bakeImg.fillRect(0, 0, clipW, clipH, 0);
-            bakeField(radius, now, lo, hi, clipX0, clipY0, clipX1, clipY1);
+            bakeField(radius, tintRgb, now, lo, hi, clipX0, clipY0, clipX1, clipY1);
             bakeTex.upload();
         }
 
         graphics.enableScissor(clipX0, clipY0, clipX1, clipY1);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, IMG_ID, clipX0, clipY0,
-                0.0F, 0.0F, clipW, clipH, clipW, clipH, clipW, clipH, -1);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, IMG_ID, clipX0, clipY0, 0, 0, clipW, clipH, clipW, clipH);
         graphics.disableScissor();
 
         // Selected block item sprite, standing on the center turf (live).
@@ -468,7 +532,7 @@ public final class EditorScene {
                 && ppy >= clipY0 - 48 && ppy <= clipY1 + 40) {
             float iconPx = Math.max(2.0F, Math.min(128.0F, viewHw * 2.0F * 1.15F));
             float iconScale = iconPx / 16.0F;
-            Matrix3x2fStack pose = graphics.pose();
+            org.joml.Matrix3x2fStack pose = graphics.pose();
             pose.pushMatrix();
             pose.translate(Math.round(ppx), Math.round(ppy + 1.0F - iconPx / 2.0F));
             pose.scale(iconScale, iconScale);
@@ -481,9 +545,8 @@ public final class EditorScene {
             pose.popMatrix();
         }
 
-        // 2D overlay on its own stratum: level numbers, then the caption.
+        // 2D overlay: level numbers, then the caption.
         Font font = Minecraft.getInstance().font;
-        graphics.nextStratum();
         int[] leg = legendRect(x, y, w, h);
         if (showLevels && numCount > 0) {
             float textScale = viewEff >= 28.0F ? 1.0F : 0.5F;
@@ -502,7 +565,7 @@ public final class EditorScene {
                         && ny >= avoid[1] - 2 && ny < avoid[1] + avoid[3] + 2) {
                     continue;
                 }
-                Matrix3x2fStack pose = graphics.pose();
+                org.joml.Matrix3x2fStack pose = graphics.pose();
                 pose.pushMatrix();
                 pose.translate(nx, ny);
                 pose.scale(textScale, textScale);
@@ -516,21 +579,21 @@ public final class EditorScene {
             Component name = center == null ? Component.literal("?") : center.getName();
             String rPart = radius == savedRadius
                     ? "R=" + radius : "R=" + radius + " (saved " + savedRadius + ")";
+            String hex = tintRgb < 0 ? "vanilla" : String.format("#%06X", tintRgb & 0xFFFFFF);
             String caption = showLevels
-                    ? name.getString() + " " + rPart + " field " + extent + "x" + extent
-                    : name.getString() + " " + rPart;
+                    ? name.getString() + " " + rPart + " " + hex + " field " + extent + "x" + extent
+                    : name.getString() + " " + rPart + " " + hex;
             int capW = font.width(caption);
             graphics.text(font, caption,
                     Math.min(Math.max(innerX, Math.round(viewCx - capW / 2.0F)), innerX + innerW - capW),
                     y + h - PAD - 9, LeTheme.TEXT_DIM);
         }
 
-        // Legend on top of everything scene-related (own stratum).
-        graphics.nextStratum();
+        // Legend on top of everything scene-related.
         drawLegend(graphics, x, y, w, h);
     }
 
-    private static final int ABGR_GRASS = 0xFF000000 | 0x4AB374;
+    private static final int ABGR_GRASS = 0xFF000000 | 0x252524;
     private static final int ABGR_STONE_L = 0xFF000000 | 0x7C7676;
     private static final int ABGR_STONE_R = 0xFF000000 | 0x666060;
     private static final int ABGR_GLASS = 0xFF000000 | 0xE8D89F;
@@ -541,7 +604,7 @@ public final class EditorScene {
      * math as the per-frame version; early-outs use the clip rect (a superset
      * of the image, so nothing visible is ever skipped).
      */
-    private static void bakeField(int radius, double now, int lo, int hi,
+    private static void bakeField(int radius, int tintRgb, double now, int lo, int hi,
                                   int clipX0, int clipY0, int clipX1, int clipY1) {
         float skirtH = 2.5F * viewLh;
         float lipH = 0.6F * viewLh;
@@ -588,7 +651,7 @@ public final class EditorScene {
                     continue;
                 }
                 int v = Math.max(0, surfaceLevel(radius, gx, gz));
-                plotDiamond(px, py, viewHw, viewHh, v >= 15 ? ABGR_GRASS : shadedTopAbgr(v));
+                plotDiamond(px, py, viewHw, viewHh, shadedTopAbgr(v, tintRgb));
             }
         }
         // Shrinking: dropped rings fall off downward, then vanish.
@@ -654,12 +717,13 @@ public final class EditorScene {
         int h = bakeImg.getHeight();
         double lx = cx - bakeX;
         double ly = cy - bakeY;
+        int rgba = abgrToRgba(abgr);
         if (hw < 0.5 || hh < 0.5) {
             // Sub-pixel cell at huge radii: single dot keeps the mass solid.
             int x = (int) Math.round(lx);
             int y = (int) Math.round(ly);
             if (x >= 0 && x < w && y >= 0 && y < h) {
-                bakeImg.setPixelABGR(x, y, abgr);
+                bakeImg.setPixel(x, y, abgrToArgb(rgba));
             }
             return;
         }
@@ -674,7 +738,7 @@ public final class EditorScene {
             int xa = Math.max(0, (int) Math.ceil(lx - half - 0.5));
             int xb = Math.min(w - 1, (int) Math.floor(lx + half - 0.5));
             for (int x = xa; x <= xb; x++) {
-                bakeImg.setPixelABGR(x, y, abgr);
+                bakeImg.setPixel(x, y, abgrToArgb(rgba));
             }
         }
     }
@@ -684,6 +748,7 @@ public final class EditorScene {
                                  double x2, double y2, double x3, double y3, int abgr) {
         int w = bakeImg.getWidth();
         int h = bakeImg.getHeight();
+        int rgba = abgrToRgba(abgr);
         double[] xs = {x0, x1, x2, x3};
         double[] ys = {y0, y1, y2, y3};
         double minY = Math.min(Math.min(y0, y1), Math.min(y2, y3));
@@ -717,7 +782,7 @@ public final class EditorScene {
             int xa = Math.max(0, (int) Math.ceil(lo - 0.5));
             int xb = Math.min(w - 1, (int) Math.floor(hi - 0.5));
             for (int x = xa; x <= xb; x++) {
-                bakeImg.setPixelABGR(x, y, abgr);
+                bakeImg.setPixel(x, y, abgrToArgb(rgba));
             }
         }
     }

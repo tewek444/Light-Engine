@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -91,7 +90,7 @@ public abstract class SerializableChunkDataMixin {
 
     @Inject(method = "parse(Lnet/minecraft/world/level/LevelHeightAccessor;Lnet/minecraft/world/level/chunk/PalettedContainerFactory;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/level/chunk/storage/SerializableChunkData;",
             at = @At("RETURN"))
-    private static void lightengine$onParse(LevelHeightAccessor height, PalettedContainerFactory factory,
+    private static void lightengine$onParse(LevelHeightAccessor height, net.minecraft.world.level.chunk.PalettedContainerFactory factory,
                                             CompoundTag tag,
                                             CallbackInfoReturnable<SerializableChunkData> cir) {
         if (!(height instanceof ServerLevel level) || tag == null) {
@@ -99,6 +98,12 @@ public abstract class SerializableChunkDataMixin {
         }
         SerializableChunkData data = cir.getReturnValue();
         if (data == null) {
+            return;
+        }
+        // Vanilla drops stored light when it must relight the chunk (version
+        // upgrade, interrupted lighting). Stale extended cells would then read
+        // as "already lit" and stop the relight wave: skip them too.
+        if (!data.lightCorrect()) {
             return;
         }
         try {

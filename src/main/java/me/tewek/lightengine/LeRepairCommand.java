@@ -39,7 +39,7 @@ public final class LeRepairCommand {
 
     public static void register(com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("lerepair")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .requires(src -> src.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER))
                 .executes(ctx -> repair(ctx.getSource(), BlockPos.containing(ctx.getSource().getPosition()), 40))
                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                         .executes(ctx -> repair(ctx.getSource(),

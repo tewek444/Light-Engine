@@ -4,21 +4,19 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import me.tewek.lightengine.LightEngine;
 import me.tewek.lightengine.client.gui.UpdateChecker;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Client-only wiring for the light overlay: {@code /lightengine light_level}
- * toggles it, {@link LightOverlayRenderer} draws it pinned to block faces
- * after the vanilla HUD. Registered from {@code LightEngineClient}, never
- * loaded on a server.
+ * toggles it, {@link LightOverlayRenderer} submits it with the level geometry.
+ * Registered from {@code LightEngineClient}, never loaded on a server.
  */
 public final class ClientOverlayHooks {
     private ClientOverlayHooks() {
@@ -64,17 +62,20 @@ public final class ClientOverlayHooks {
     }
 
     @SubscribeEvent
-    public static void onRenderGui(RenderGuiEvent.Post event) {
+    public static void onSubmitGeometry(SubmitCustomGeometryEvent event) {
         if (!LightOverlayRenderer.isEnabled()) {
             return;
         }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.gui.screen() != null) {
-            return;
+        Vec3 cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.mainCamera().position();
+        LightOverlayRenderer.render(event.getPoseStack(), cam.x, cam.y, cam.z, event.getSubmitNodeCollector());
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        try {
+            ColorLightEnv.tick();
+        } catch (Exception ex) {
+            LightEngine.LOGGER.debug("Colored light env tick failed", ex);
         }
-        Vec3 cam = mc.gameRenderer.mainCamera().position();
-        GuiGraphicsExtractor graphics = event.getGuiGraphics();
-        LightOverlayRenderer.render(graphics, cam.x, cam.y, cam.z,
-                graphics.guiWidth(), graphics.guiHeight());
     }
 }

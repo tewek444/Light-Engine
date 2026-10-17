@@ -139,11 +139,7 @@ public class LeScrollList implements LeWidget {
                 graphics.fill(this.x + 1, rowY, this.x + this.width - 1, rowY + this.rowHeight, LeTheme.ROW_HOVER);
             }
             if (entry.icon != null && !entry.icon.isEmpty()) {
-                try {
-                    graphics.item(entry.icon, this.x + 4, rowY + (this.rowHeight - 16) / 2);
-                } catch (Exception ignored) {
-                    // Item models may need world-bound state; never break the list.
-                }
+                graphics.item(entry.icon, this.x + 4, rowY + (this.rowHeight - 16) / 2);
             }
             int labelX = this.x + 24;
             int labelW = this.width - 28 - (entry.sub.isEmpty() ? 0 : font.width(entry.sub) + 8);
@@ -171,8 +167,7 @@ public class LeScrollList implements LeWidget {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // SDL button numbering (button == 1 is left).
-        if (button != LightEditorScreen.LEFT_BUTTON || !this.isMouseOver(mouseX, mouseY)) {
+        if (button != 0 || !this.isMouseOver(mouseX, mouseY)) {
             return false;
         }
         if (this.maxScroll() > 0 && mouseX >= this.x + this.width - 6) {
@@ -205,7 +200,7 @@ public class LeScrollList implements LeWidget {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (this.draggingThumb && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.draggingThumb && button == 0) {
             this.scrollTo(mouseY);
             return true;
         }
@@ -214,7 +209,7 @@ public class LeScrollList implements LeWidget {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (this.draggingThumb && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.draggingThumb && button == 0) {
             this.draggingThumb = false;
             return true;
         }

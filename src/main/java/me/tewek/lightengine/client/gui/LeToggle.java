@@ -49,8 +49,7 @@ public class LeToggle implements LeWidget {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // SDL button numbering (button == 1 is left).
-        if (button == LightEditorScreen.LEFT_BUTTON && this.isMouseOver(mouseX, mouseY)) {
+        if (button == 0 && this.isMouseOver(mouseX, mouseY)) {
             this.checked = !this.checked;
             this.onChange.accept(this.checked);
             return true;

@@ -18,8 +18,9 @@ import org.spongepowered.asm.mixin.injection.At;
  * fully opaque block must stop. This keeps sealed boxes dark and preserves
  * vanilla attenuation for everything else.
  *
- * <p>26.x note: {@code getOpacity} moved to the base {@code LightEngine}
- * and takes only the state (no position); the expression hook follows it.
+ * <p>Note: emission itself comes from {@link BlockStateBaseMixin} and
+ * {@link BlockStateExtensionMixin}; this mixin must not shadow inherited
+ * engine fields.
  */
 @Mixin(BlockLightEngine.class)
 public abstract class BlockLightEngineMixin {
@@ -27,7 +28,7 @@ public abstract class BlockLightEngineMixin {
             method = "propagateIncrease",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/level/lighting/BlockLightEngine;getOpacity(Lnet/minecraft/world/level/block/state/BlockState;)I"))
-    private int lightengine$clampOpacityForExtended(int original, long fromNode, long increaseData, int fromLevel) {
+    private int lightengine$clampOpacityForExtended(int original, long packedPos, long queueEntry, int lightLevel) {
         if (!LightProfileRegistry.isEnabled()) {
             return original;
         }
@@ -36,11 +37,11 @@ public abstract class BlockLightEngineMixin {
         }
         int entryLevel;
         try {
-            entryLevel = net.minecraft.world.level.lighting.LightEngine.QueueEntry.getFromLevel(increaseData);
+            entryLevel = net.minecraft.world.level.lighting.LightEngine.QueueEntry.getFromLevel(queueEntry);
         } catch (Exception ignored) {
             entryLevel = 0;
         }
-        int propagating = Math.max(fromLevel, entryLevel);
+        int propagating = Math.max(lightLevel, entryLevel);
         if (propagating > 15) {
             return propagating;
         }

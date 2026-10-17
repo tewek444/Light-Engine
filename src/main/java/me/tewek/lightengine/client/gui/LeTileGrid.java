@@ -1,10 +1,10 @@
 package me.tewek.lightengine.client.gui;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Matrix3x2fStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,11 +15,6 @@ import java.util.function.Consumer;
  * Square cells hold a centered icon and a bottom strip (sun pixel icon +
  * left text, torch pixel art + right text); long texts shrink to fit.
  * Hover, selection, wheel scroll and a draggable scrollbar thumb. Virtualized.
- *
- * <p>26.x notes: scaled text/icons are drawn through the 2D
- * {@link Matrix3x2fStack} pose ({@code pushMatrix}/{@code popMatrix}) and the
- * extractor's own {@code text}/{@code item} submissions — no manual buffer
- * flush is needed anymore.
  */
 public class LeTileGrid implements LeWidget {
     public static final class Cell {
@@ -78,13 +73,6 @@ public class LeTileGrid implements LeWidget {
 
     /** Header row height. */
     public static final int HEADER_H = 16;
-    /**
-     * SDL right mouse button ({@code SDL_BUTTON_RIGHT}).
-     * Pre-26 (GLFW) numbering was LEFT=0/RIGHT=1/MIDDLE=2; 26.x SDL numbering
-     * is LEFT=1 (see {@link LightEditorScreen#LEFT_BUTTON})/MIDDLE=2/RIGHT=3,
-     * so alpha3's {@code button == 1} (right) maps here to {@code 3}.
-     */
-    public static final int RIGHT_BUTTON = 3;
 
     /** Row layout: header cells take a full row, plain cells flow cols-wide. */
     private static final class Row {
@@ -296,7 +284,7 @@ public class LeTileGrid implements LeWidget {
         float groupW = (font.width(shown) + (entry.sun ? 7.0F : 0.0F)) * scale;
         float gx = bx + (cell - groupW) / 2.0F;
         float gy = stripY + (stripH - 8.0F * scale) / 2.0F;
-        Matrix3x2fStack pose = graphics.pose();
+        org.joml.Matrix3x2fStack pose = graphics.pose();
         pose.pushMatrix();
         pose.translate(gx, gy);
         pose.scale(scale, scale);
@@ -306,7 +294,7 @@ public class LeTileGrid implements LeWidget {
             graphics.fill((int) cx + 1, 3, (int) cx + 3, 5, 0xFFFFF0B0);
             cx += 7.0F;
         }
-        graphics.text(font, shown, (int) cx, 0, LeTheme.TEXT);
+        graphics.text(font, shown, (int) (cx), (int) (0.0F), LeTheme.TEXT, false);
         pose.popMatrix();
     }
 
@@ -319,11 +307,11 @@ public class LeTileGrid implements LeWidget {
             shown = shown.substring(0, shown.length() - 1);
         }
         float drawY = y + (8.0F - 8.0F * scale) / 2.0F;
-        Matrix3x2fStack pose = graphics.pose();
+        org.joml.Matrix3x2fStack pose = graphics.pose();
         pose.pushMatrix();
         pose.translate(x, drawY);
         pose.scale(scale, scale);
-        graphics.text(font, shown, 0, 0, color);
+        graphics.text(font, shown, (int) (0.0F), (int) (0.0F), color, false);
         pose.popMatrix();
     }
 
@@ -401,16 +389,11 @@ public class LeTileGrid implements LeWidget {
                     float iconScale = iconPx / 16.0F;
                     float cx = bx + cell / 2.0F;
                     float cy = by + iconAreaH / 2.0F;
-                    Matrix3x2fStack pose = graphics.pose();
+                    org.joml.Matrix3x2fStack pose = graphics.pose();
                     pose.pushMatrix();
                     pose.translate(Math.round(cx), Math.round(cy));
                     pose.scale(iconScale, iconScale);
-                    try {
-                        graphics.item(entry.icon, -8, -8);
-                    } catch (Exception ignored) {
-                        // Item models may need world-bound state (e.g. right after
-                        // launch); a missing sprite must not break the panel.
-                    }
+                    graphics.item(entry.icon, -8, -8);
                     pose.popMatrix();
                 }
                 if (entry.ref == ADD) {
@@ -437,7 +420,7 @@ public class LeTileGrid implements LeWidget {
                 float groupW = rightNeed * rightScale;
                 float gx = bx + cell - 3 - groupW;
                 float gy = stripY + (stripH - 8.0F * rightScale) / 2.0F;
-                Matrix3x2fStack pose = graphics.pose();
+                org.joml.Matrix3x2fStack pose = graphics.pose();
                 pose.pushMatrix();
                 pose.translate(gx, gy);
                 pose.scale(rightScale, rightScale);
@@ -447,7 +430,7 @@ public class LeTileGrid implements LeWidget {
                     graphics.fill((int) cx, 0, (int) cx + 4, 2, 0xFFFF3B30);
                     cx += 6.0F;
                 }
-                graphics.text(font, entry.right, (int) cx, 0, LeTheme.TEXT_DIM);
+                graphics.text(font, entry.right, (int) (cx), (int) (0.0F), LeTheme.TEXT_DIM, false);
                 pose.popMatrix();
             }
         }
@@ -475,20 +458,14 @@ public class LeTileGrid implements LeWidget {
         if (!this.isMouseOver(mouseX, mouseY)) {
             return false;
         }
-        // Right click opens the contextual action (alpha3: GLFW button == 1).
-        // 26.3 uses SDL numbering (LEFT_BUTTON == 1, MIDDLE == 2, RIGHT == 3),
-        // so the right button is RIGHT_BUTTON (3), not 1. No RIGHT_BUTTON
-        // constant exists on LightEditorScreen (only LEFT_BUTTON), and no other
-        // 26.3 widget references button 2/3, hence the local constant above.
-        if (button == RIGHT_BUTTON) {
+        if (button == 1) {
             int secondary = this.indexAt(mouseX, mouseY);
             if (secondary >= 0 && this.onSecondary != null) {
                 this.onSecondary.accept(secondary);
             }
             return true;
         }
-        // SDL button numbering (button == 1 is left).
-        if (button != LightEditorScreen.LEFT_BUTTON) {
+        if (button != 0) {
             return false;
         }
         if (this.maxScroll() > 0 && mouseX >= this.x + this.width - 6) {
@@ -506,7 +483,7 @@ public class LeTileGrid implements LeWidget {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (this.draggingThumb && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.draggingThumb && button == 0) {
             this.scrollTo(mouseY);
             return true;
         }
@@ -515,7 +492,7 @@ public class LeTileGrid implements LeWidget {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (this.draggingThumb && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.draggingThumb && button == 0) {
             this.draggingThumb = false;
             return true;
         }

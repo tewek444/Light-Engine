@@ -1,7 +1,9 @@
 package me.tewek.lightengine.client.gui;
 
-import me.tewek.lightengine.Config;
+import com.mojang.blaze3d.platform.InputConstants;
 import me.tewek.lightengine.LightEngine;
+import me.tewek.lightengine.Config;
+import me.tewek.lightengine.ConfigFile;
 import me.tewek.lightengine.LightProfileRegistry;
 import me.tewek.lightengine.client.EditorSync;
 import me.tewek.lightengine.network.ProfileFileStore;
@@ -9,16 +11,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.fml.ModList;
-import org.joml.Matrix3x2fStack;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -33,21 +30,9 @@ import java.util.Set;
  * In-game light editor. Left: radius + ignore flag + values + change log.
  * Center: analytic diorama preview. Right: tile palette with search.
  * Top-right X asks for confirmation when dirty. No vanilla widgets used.
- *
- * <p>26.x notes: draws through {@link GuiGraphicsExtractor}
- * ({@code text}/{@code centeredText}/{@code item}); overlay layers use
- * {@code nextStratum()} instead of a z-translated pose; input arrives as
- * {@code MouseButtonEvent}/{@code KeyEvent}/{@code CharacterEvent} records
- * (SDL codes) and is unpacked to the internal {@link LeWidget} dispatch.
- *
- * <p>Alpha3 features: sectioned tile palette (per-mod buckets + trailing
- * "added" section), tile context menu (reset / copy /give), scene settings
- * popup, full update popup (changelog, installed version, restart-to-apply),
- * slider release logging with dedup, scene ctrl+wheel zoom and ctrl+drag pan.
  */
 public class LightEditorScreen extends Screen {
-    /** SDL left mouse button ({@code SDL_BUTTON_LEFT}). */
-    public static final int LEFT_BUTTON = 1;
+    private final Screen parent;
 
     /**
      * The editor GUI scale follows {@link #editorGuiScale}: by default it
@@ -76,8 +61,6 @@ public class LightEditorScreen extends Screen {
         return Math.max(1, Math.round(height / this.uiScale()));
     }
 
-    private final Screen parent;
-
     /** Last selected block, remembered for the session (torch on first open). */
     private static Identifier rememberedId = Identifier.parse("minecraft:torch");
 
@@ -105,6 +88,8 @@ public class LightEditorScreen extends Screen {
     private LeSlider radiusSlider;
     private LeTileGrid tileGrid;
     private LeTextField panelSearch;
+    private LeTextField colorField;
+    private boolean syncingColor;
 
     private int sceneX;
     private int sceneY;
@@ -121,10 +106,6 @@ public class LightEditorScreen extends Screen {
     private LePopup tileMenu;
     private double lastMouseX;
     private double lastMouseY;
-    /** Tracked Ctrl state for ctrl+wheel zoom (scroll events carry no modifiers). SDL_KMOD_* mask. */
-    private boolean ctrlDown;
-    private static final int KMOD_LCTRL = 0x0040;
-    private static final int KMOD_RCTRL = 0x0080;
     private UpdateChecker.State lastUpdateState = UpdateChecker.State.IDLE;
     private LeProgressBar updateBar;
     private LeLabel updateStatus;
@@ -161,6 +142,19 @@ public class LightEditorScreen extends Screen {
                 Component.translatable("lightengine.editor.ignore_conditions"),
                 false, this::onIgnore);
         this.widgets.add(this.signalToggle);
+        this.colorToggle = new LeToggle(lx + 8, 106, lw - 16, 20,
+                Component.translatable("lightengine.editor.use_light_color"),
+                true, this::onColorEnabled);
+        this.widgets.add(this.colorToggle);
+        this.colorSwatch = new LeColorSwatch(lx + 8, 130, 20,
+                () -> this.colorOf(this.activeId),
+                () -> this.colorToggle != null && this.colorToggle.isChecked(),
+                this::openColorPicker);
+        this.widgets.add(this.colorSwatch);
+        this.colorField = new LeTextField(lx + 8 + 24, 130, lw - 16 - 24, 20,
+                Component.translatable("lightengine.editor.light_color"), this::onColor);
+        this.colorField.setPlaceholder(Component.translatable("lightengine.editor.light_color_hint").getString());
+        this.widgets.add(this.colorField);
         this.logX = lx + 8;
         this.logW = lw - 16;
         this.logH = Math.max(30, (h - 40 - 112) / 2);
@@ -198,47 +192,33 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.colorToggle.setChecked(this.tintOf(this.activeId));
+        this.colorField.setEnabled(this.tintOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
     }
 
     private LeToggle signalToggle;
 
+    private LeToggle colorToggle;
+
+    private LeColorSwatch colorSwatch;
+
+    private void addButton(LeButton button) {
+        this.widgets.add(button);
+    }
+
     /**
-     * Best-effort item icon. On the title screen (no world loaded) data
-     * component bindings may be absent and {@code new ItemStack(...)} throws
-     * "Components not bound yet". Worse, a stack bound to an empty map still
-     * renders nothing: the item model resolver skips stacks without an
-     * {@code ITEM_MODEL} component. So unbound holders are pre-bound with
-     * just that component (model id = item id, the vanilla convention;
-     * models bake from client resources at startup). Vanilla re-binds the
-     * real components on datapack sync, overwriting this. {@code bindComponents}
-     * is public in 26.x, so no mixin is needed. Falls back to no icon if
-     * anything still fails.
+     * Best-effort item icon for the scene pedestal; null when the block
+     * has no item (callers draw the glass diamond instead).
      */
     static ItemStack safeIcon(Block block) {
         try {
-            net.minecraft.world.item.Item item = block.asItem();
-            net.minecraft.core.Holder.Reference<net.minecraft.world.item.Item> holder =
-                    item.builtInRegistryHolder();
-            if (!holder.areComponentsBound()) {
-                net.minecraft.resources.Identifier itemId =
-                        net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
-                net.minecraft.core.component.DataComponentMap prebound =
-                        itemId == null ? net.minecraft.core.component.DataComponentMap.EMPTY
-                                : net.minecraft.core.component.DataComponentMap.builder()
-                                        .set(net.minecraft.core.component.DataComponents.ITEM_MODEL, itemId)
-                                        .build();
-                holder.bindComponents(prebound);
-            }
-            ItemStack stack = new ItemStack(item);
+            ItemStack stack = BlockIcons.iconFor(block);
             return stack.isEmpty() ? null : stack;
         } catch (Exception ex) {
             return null;
         }
-    }
-
-    private void addButton(LeButton button) {
-        this.widgets.add(button);
     }
 
     // ----- state -----
@@ -249,6 +229,12 @@ public class LightEditorScreen extends Screen {
             return 0;
         }
         return block.defaultBlockState().getLightEmission();
+    }
+
+    /** Radius including unsaved edits (what the tile and slider should show). */
+    private int pendingRadius(Identifier id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        return dirty != null ? dirty.lightRadius() : this.effectiveRadius(id);
     }
 
     private int effectiveRadius(Identifier id) {
@@ -266,9 +252,13 @@ public class LightEditorScreen extends Screen {
         this.activeId = id;
         rememberedId = id;
         this.ensurePalette(id);
-        this.radiusSlider.setValue(this.effectiveRadius(id), false);
+        this.radiusSlider.setValue(this.pendingRadius(id), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(id));
+        this.colorToggle.setChecked(this.tintOf(id));
+        this.colorField.setEnabled(this.tintOf(id));
+        this.closeColorPicker();
+        this.syncColorField();
         this.refreshTiles();
     }
 
@@ -276,7 +266,8 @@ public class LightEditorScreen extends Screen {
         this.sliderValue = value;
         this.dirty = true;
         this.dirtyProfiles.put(this.activeId,
-                new LightProfileRegistry.Profile(value, this.signalToggle.isChecked()));
+                new LightProfileRegistry.Profile(value, this.signalToggle.isChecked(), this.colorOf(this.activeId),
+                        this.colorToggle.isChecked()));
         this.refreshTiles();
     }
 
@@ -292,14 +283,126 @@ public class LightEditorScreen extends Screen {
     private void onIgnore(boolean ignore) {
         this.dirty = true;
         this.dirtyProfiles.put(this.activeId,
-                new LightProfileRegistry.Profile(this.sliderValue, ignore));
+                new LightProfileRegistry.Profile(this.sliderValue, ignore, this.colorOf(this.activeId),
+                        this.colorToggle.isChecked()));
         this.logChange(this.activeId + (ignore ? " ignore+" : " ignore-"));
         this.refreshTiles();
     }
 
+    private void onColorEnabled(boolean enabled) {
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(),
+                        this.colorOf(this.activeId), enabled));
+        if (this.colorField != null) {
+            this.colorField.setEnabled(enabled);
+        }
+        if (!enabled) {
+            this.closeColorPicker();
+        }
+        this.logChange(this.activeId + (enabled ? " tint+" : " tint-"));
+        this.refreshTiles();
+    }
+
+    private void openColorPicker() {
+        if (this.colorToggle == null || !this.colorToggle.isChecked()) {
+            return;
+        }
+        LePopup top = this.topPopup();
+        if (top instanceof LeColorPickerPopup) {
+            return;
+        }
+        int px = (this.uiW() - LeColorPickerPopup.WIDTH) / 2;
+        int py = (this.uiH() - LeColorPickerPopup.HEIGHT) / 2;
+        this.popups.push(new LeColorPickerPopup(px, py, this.colorOf(this.activeId), this::onPickerColor));
+    }
+
+    private void closeColorPicker() {
+        LePopup top = this.topPopup();
+        if (top instanceof LeColorPickerPopup) {
+            top.close();
+        }
+    }
+
+    private void onPickerColor(int rgb) {
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(), rgb,
+                        this.colorToggle.isChecked()));
+        this.syncColorField();
+        this.refreshTiles();
+    }
+
+    private void onColor(String text) {
+        if (this.syncingColor) {
+            return;
+        }
+        int rgb = parseHexStrict(text);
+        if (rgb < 0) {
+            return; // intermediate input while typing; keep the last good color
+        }
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(), rgb,
+                        this.colorToggle.isChecked()));
+    }
+
+    /** Strict #RRGGBB / RRGGBB, or -1. */
+    private static int parseHexStrict(String text) {
+        if (text == null) {
+            return -1;
+        }
+        String t = text.strip();
+        if (t.startsWith("#")) {
+            t = t.substring(1);
+        }
+        if (t.length() != 6) {
+            return -1;
+        }
+        try {
+            return Integer.parseUnsignedInt(t, 16) & 0xFFFFFF;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    private void syncColorField() {
+        if (this.colorField == null) {
+            return;
+        }
+        this.syncingColor = true;
+        try {
+            this.colorField.setValue(LightProfileRegistry.formatColor(this.colorOf(this.activeId)));
+        } finally {
+            this.syncingColor = false;
+        }
+    }
+
+    private int colorOf(Identifier id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.color();
+        }
+        LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
+        return profile == null ? LightProfileRegistry.DEFAULT_COLOR : profile.color();
+    }
+
     private boolean ignoreOf(Identifier id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.ignoreConditions();
+        }
         LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
         return profile != null && profile.ignoreConditions();
+    }
+
+    private boolean tintOf(Identifier id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.tintEnabled();
+        }
+        LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
+        return profile == null || profile.tintEnabled();
     }
 
     private void logChange(String line) {
@@ -346,8 +449,7 @@ public class LightEditorScreen extends Screen {
             return "Minecraft";
         }
         try {
-            return ModList.get().getModContainerById(namespace)
-                    .map(c -> c.getModInfo().getDisplayName()).orElse(namespace);
+            return me.tewek.lightengine.platform.Platform.modName(namespace);
         } catch (Exception ex) {
             return namespace;
         }
@@ -393,9 +495,9 @@ public class LightEditorScreen extends Screen {
                     continue;
                 }
                 String name = block.getName().getString();
-                ItemStack stack = safeIcon(block);
-                int shown = id.equals(this.activeId) ? this.sliderValue : this.effectiveRadius(id);
-                cells.add(new LeTileGrid.Cell(stack, name, id.toString(),
+                ItemStack stack = BlockIcons.iconFor(block);
+                int shown = id.equals(this.activeId) ? this.sliderValue : this.pendingRadius(id);
+                cells.add(new LeTileGrid.Cell(stack.isEmpty() ? null : stack, name, id.toString(),
                         String.valueOf(shown), true, "", false, id));
             }
         }
@@ -423,9 +525,9 @@ public class LightEditorScreen extends Screen {
                 continue;
             }
             String name = block.getName().getString();
-            ItemStack stack = safeIcon(block);
-            int shown = id.equals(this.activeId) ? this.sliderValue : this.effectiveRadius(id);
-            cells.add(new LeTileGrid.Cell(stack, name, id.toString(),
+            ItemStack stack = BlockIcons.iconFor(block);
+            int shown = id.equals(this.activeId) ? this.sliderValue : this.pendingRadius(id);
+            cells.add(new LeTileGrid.Cell(stack.isEmpty() ? null : stack, name, id.toString(),
                     String.valueOf(shown), true, "", false, id));
         }
         cells.add(new LeTileGrid.Cell(null, "+", "", "", false, "", false, LeTileGrid.ADD));
@@ -508,6 +610,7 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
     }
 
@@ -542,7 +645,36 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
+    }
+
+    /**
+     * Stages a built-in preset as pending edits (shown live, saved with
+     * Apply like any other change). Blocks outside the preset stay as they are.
+     */
+    private void applyPreset(me.tewek.lightengine.LightPresets.Mode mode) {
+        Map<Identifier, LightProfileRegistry.Profile> preset = me.tewek.lightengine.LightPresets.build(mode);
+        this.dirtyProfiles.putAll(preset);
+        this.dirty = true;
+        for (Identifier id : preset.keySet()) {
+            if (!this.paletteIds.contains(id)) {
+                this.paletteIds.add(id);
+            }
+        }
+        this.logChange("preset " + mode.key + " (" + preset.size() + ")");
+        LightProfileRegistry.Profile active = this.dirtyProfiles.get(this.activeId);
+        if (active != null) {
+            this.radiusSlider.setValue(active.lightRadius(), false);
+            this.sliderValue = this.radiusSlider.getValue();
+            this.signalToggle.setChecked(active.ignoreConditions());
+            this.colorToggle.setChecked(active.tintEnabled());
+            if (this.colorField != null) {
+                this.colorField.setEnabled(active.tintEnabled());
+            }
+        }
+        this.syncColorField();
+        this.rebuildPalette();
     }
 
     private void onX() {
@@ -578,7 +710,7 @@ public class LightEditorScreen extends Screen {
         if (this.settingsPopup != null && this.settingsPopup.isOpen()) {
             return;
         }
-        LePopup popup = new LePopup(220, 164, Component.translatable("lightengine.editor.settings"));
+        LePopup popup = new LePopup(220, 240, Component.translatable("lightengine.editor.settings"));
         this.settingsPopup = popup;
         int px = popup.panelX(this.uiW());
         int py = popup.panelY(this.uiH());
@@ -594,11 +726,28 @@ public class LightEditorScreen extends Screen {
                 Component.translatable("lightengine.editor.gui_scale"),
                 0, 4, editorGuiScale, v -> pendingScale[0] = v,
                 v -> v <= 0 ? Component.translatable("lightengine.editor.gui_scale_auto").getString() : "x" + v));
-        popup.add(new LeButton(px + 35, py + 122, 150, 20,
+        final int[] pendingStrength = new int[]{Config.colorStrength()};
+        popup.add(new LeSlider(px + 15, py + 116, 190, 28,
+                Component.translatable("lightengine.editor.color_strength"),
+                0, 100, pendingStrength[0], v -> pendingStrength[0] = v,
+                v -> v + "%"));
+        popup.add(new LeLabel(px + 15, py + 150, 190, Component.translatable("lightengine.editor.preset"),
+                LeTheme.TEXT_DIM, false));
+        me.tewek.lightengine.LightPresets.Mode[] modes = me.tewek.lightengine.LightPresets.Mode.values();
+        for (int i = 0; i < modes.length; i++) {
+            me.tewek.lightengine.LightPresets.Mode mode = modes[i];
+            popup.add(new LeButton(px + 15 + i * 64, py + 162, 62, 20,
+                    Component.translatable("lightengine.editor.preset." + mode.key), b -> this.applyPreset(mode)));
+        }
+        popup.add(new LeButton(px + 35, py + 198, 150, 20,
                 Component.translatable("lightengine.editor.apply"), b -> {
                     editorGuiScale = Math.min(4, Math.max(0, pendingScale[0]));
+                    Config.setColorStrength(pendingStrength[0]);
+                    ConfigFile.saveColorStrength(pendingStrength[0]);
+                    if (Minecraft.getInstance().levelRenderer != null) {
+                        Minecraft.getInstance().levelExtractor.allChanged();
+                    }
                     popup.close();
-                    this.init();
                 }));
         this.popups.push(popup);
     }
@@ -857,8 +1006,8 @@ public class LightEditorScreen extends Screen {
                     continue;
                 }
                 String name = block.getName().getString();
-                ItemStack stack = safeIcon(block);
-                rows.add(new LeScrollList.Entry(stack, name, id.toString(), id));
+                ItemStack stack = BlockIcons.iconFor(block);
+                rows.add(new LeScrollList.Entry(stack.isEmpty() ? null : stack, name, id.toString(), id));
                 if (rows.size() >= 1500) {
                     break;
                 }
@@ -910,7 +1059,10 @@ public class LightEditorScreen extends Screen {
                     this.uiW(), this.uiH(), LeIconButton.dotTooltip());
             return;
         }
-        if (this.topPopup() != null || this.tileGrid == null) {
+        if (this.topPopup() != null) {
+            return;
+        }
+        if (this.tileGrid == null) {
             return;
         }
         if (!this.tileGrid.isMouseOver(mouseX, mouseY)) {
@@ -925,22 +1077,19 @@ public class LightEditorScreen extends Screen {
         int h = 26;
         int tx = Math.min(mouseX + 12, this.uiW() - w - 4);
         int ty = Math.min(mouseY + 12, this.uiH() - h - 4);
-        graphics.nextStratum();
+        graphics.pose().pushMatrix();
         LeTheme.frame(graphics, tx, ty, w, h, 0xF0101014, LeTheme.PANEL_BORDER);
         graphics.text(font, cell.name, tx + 5, ty + 4, LeTheme.TEXT);
         graphics.text(font, id.toString(), tx + 5, ty + 14, LeTheme.TEXT_DIM);
+        graphics.pose().popMatrix();
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        // NOTE: no extractBackground() here — extractRenderStateWithTooltipAndSubtitles
-        // already extracts it (with its own strata) before calling us; calling it
-        // again would blur twice per frame and crash.
         // Fixed scale-2 look: draw everything in logical units under a pose scale.
         float ui = this.uiScale();
-        Matrix3x2fStack rootPose = graphics.pose();
-        rootPose.pushMatrix();
-        rootPose.scale(ui, ui);
+        graphics.pose().pushMatrix();
+        graphics.pose().scale(ui, ui);
         mouseX = (int) (mouseX / ui);
         mouseY = (int) (mouseY / ui);
         graphics.centeredText(this.font, this.title, this.uiW() / 2, 8, 0xFFFFFFFF);
@@ -969,12 +1118,11 @@ public class LightEditorScreen extends Screen {
                 }
                 line = dots;
             }
-            Matrix3x2fStack pose = graphics.pose();
-            pose.pushMatrix();
-            pose.translate(this.logX + 4, logBoxY + 4 + (i - from) * 6);
-            pose.scale(0.5F, 0.5F);
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(this.logX + 4, logBoxY + 4 + (i - from) * 6);
+            graphics.pose().scale(0.5F, 0.5F);
             graphics.text(this.font, line, 0, 0, LeTheme.TEXT_DIM);
-            pose.popMatrix();
+            graphics.pose().popMatrix();
         }
         LeTheme.frame(graphics, this.uiW() - 160, 28, 150, this.uiH() - 68, LeTheme.PANEL_BG, LeTheme.PANEL_BORDER);
         graphics.text(this.font, Component.translatable("lightengine.editor.blocks"),
@@ -987,26 +1135,25 @@ public class LightEditorScreen extends Screen {
         }
         EditorScene.render(graphics, this.sceneX, this.sceneY, this.sceneW, this.sceneH,
                 active, this.sliderValue, this.effectiveRadius(this.activeId),
-                this.showLevels, avoid);
+                this.showLevels, avoid, this.tintOf(this.activeId) ? this.colorOf(this.activeId) : -1);
         for (LeWidget widget : this.widgets) {
             widget.render(graphics, mouseX, mouseY, partialTick);
         }
         LePopup popup = this.topPopup();
         if (popup != null) {
-            graphics.nextStratum();
+            graphics.pose().pushMatrix();
             popup.renderBackground(graphics, this.uiW(), this.uiH());
             popup.renderWidgets(graphics, mouseX, mouseY, partialTick);
+            graphics.pose().popMatrix();
         }
         this.renderTooltip(graphics, mouseX, mouseY);
-        rootPose.popMatrix();
+        graphics.pose().popMatrix();
     }
 
-    @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    private boolean le$mouseClicked(double mouseX, double mouseY, int button) {
         float ui = this.uiScale();
-        double mouseX = event.x() / ui;
-        double mouseY = event.y() / ui;
-        int button = event.button();
+        mouseX /= ui;
+        mouseY /= ui;
         this.lastMouseX = mouseX;
         this.lastMouseY = mouseY;
         LePopup popup = this.topPopup();
@@ -1033,22 +1180,20 @@ public class LightEditorScreen extends Screen {
             }
         }
         this.syncFocused(null);
-        return super.mouseClicked(event, doubleClick);
+        return false;
     }
 
-    @Override
-    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+    private boolean le$mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         float ui = this.uiScale();
-        double mouseX = event.x() / ui;
-        double mouseY = event.y() / ui;
+        mouseX /= ui;
+        mouseY /= ui;
         dragX /= ui;
         dragY /= ui;
-        int button = event.button();
         LePopup popup = this.topPopup();
         if (popup != null) {
             return popup.mouseDragged(mouseX, mouseY, button, dragX, dragY);
         }
-        if (button == LEFT_BUTTON && event.hasControlDown()
+        if (button == 0 && net.minecraft.client.Minecraft.getInstance().hasControlDown()
                 && mouseX >= this.sceneX && mouseX < this.sceneX + this.sceneW
                 && mouseY >= this.sceneY && mouseY < this.sceneY + this.sceneH) {
             EditorScene.panBy(dragX, dragY, this.sceneW, this.sceneH);
@@ -1059,15 +1204,13 @@ public class LightEditorScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseDragged(event, dragX, dragY);
+        return false;
     }
 
-    @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
+    private boolean le$mouseReleased(double mouseX, double mouseY, int button) {
         float ui = this.uiScale();
-        double mouseX = event.x() / ui;
-        double mouseY = event.y() / ui;
-        int button = event.button();
+        mouseX /= ui;
+        mouseY /= ui;
         LePopup popup = this.topPopup();
         if (popup != null) {
             return popup.mouseReleased(mouseX, mouseY, button);
@@ -1077,7 +1220,7 @@ public class LightEditorScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseReleased(event);
+        return false;
     }
 
     @Override
@@ -1089,7 +1232,7 @@ public class LightEditorScreen extends Screen {
         if (popup != null) {
             return popup.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
-        if (this.ctrlDown
+        if (net.minecraft.client.Minecraft.getInstance().hasControlDown()
                 && mouseX >= this.sceneX && mouseX < this.sceneX + this.sceneW
                 && mouseY >= this.sceneY && mouseY < this.sceneY + this.sceneH) {
             EditorScene.zoomAt(mouseX, mouseY, scrollY != 0.0 ? scrollY : scrollX,
@@ -1105,10 +1248,8 @@ public class LightEditorScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    @Override
-    public boolean keyPressed(KeyEvent event) {
-        this.ctrlDown = (event.modifiers() & (KMOD_LCTRL | KMOD_RCTRL)) != 0;
-        if (event.isEscape()) {
+    private boolean le$keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == InputConstants.KEY_ESCAPE) {
             LePopup popup = this.topPopup();
             if (popup != null) {
                 popup.close();
@@ -1117,50 +1258,47 @@ public class LightEditorScreen extends Screen {
             this.onX();
             return true;
         }
-        int keyCode = event.key();
-        int scanCode = event.keycode();
-        int modifiers = event.modifiers();
-        LePopup popup = this.topPopup();
-        if (popup != null) {
-            return popup.keyPressed(keyCode, scanCode, modifiers);
-        }
         if (this.focusedField != null && this.focusedField.keyPressed(keyCode, scanCode, modifiers)) {
             return true;
         }
-        return super.keyPressed(event);
+        return false;
     }
 
-    @Override
-    public boolean keyReleased(KeyEvent event) {
-        this.ctrlDown = (event.modifiers() & (KMOD_LCTRL | KMOD_RCTRL)) != 0;
-        int keyCode = event.key();
-        int scanCode = event.keycode();
-        int modifiers = event.modifiers();
-        LePopup popup = this.topPopup();
-        if (popup != null) {
-            return popup.keyReleased(keyCode, scanCode, modifiers);
-        }
-        if (this.focusedField != null && this.focusedField.keyReleased(keyCode, scanCode, modifiers)) {
+    private boolean le$charTyped(char codePoint, int modifiers) {
+        if (this.focusedField != null && this.focusedField.charTyped(codePoint, modifiers)) {
             return true;
         }
-        return super.keyReleased(event);
-    }
-
-    @Override
-    public boolean charTyped(CharacterEvent event) {
-        char codePoint = (char) event.codepoint();
-        LePopup popup = this.topPopup();
-        if (popup != null) {
-            return popup.charTyped(codePoint, 0);
-        }
-        if (this.focusedField != null && this.focusedField.charTyped(codePoint, 0)) {
-            return true;
-        }
-        return super.charTyped(event);
+        return false;
     }
 
     @Override
     public void onClose() {
         this.minecraft.gui.setScreen(this.parent);
+    }
+
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        return this.le$mouseClicked(event.x(), event.y(), event.button()) || super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dragX, double dragY) {
+        return this.le$mouseDragged(event.x(), event.y(), event.button(), dragX, dragY)
+                || super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        return this.le$mouseReleased(event.x(), event.y(), event.button()) || super.mouseReleased(event);
+    }
+
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        return this.le$keyPressed(event.key(), event.keycode(), event.modifiers()) || super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        return this.le$charTyped((char) event.codepoint(), 0) || super.charTyped(event);
     }
 }

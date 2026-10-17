@@ -95,8 +95,7 @@ public class LeSlider implements LeWidget {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // SDL button numbering (button == 1 is left).
-        if (button == LightEditorScreen.LEFT_BUTTON && this.isMouseOver(mouseX, mouseY)) {
+        if (button == 0 && this.isMouseOver(mouseX, mouseY)) {
             this.dragging = true;
             this.slideTo(mouseX);
             return true;
@@ -106,7 +105,7 @@ public class LeSlider implements LeWidget {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (this.dragging && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.dragging && button == 0) {
             this.slideTo(mouseX);
             return true;
         }
@@ -115,7 +114,7 @@ public class LeSlider implements LeWidget {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (this.dragging && button == LightEditorScreen.LEFT_BUTTON) {
+        if (this.dragging && button == 0) {
             this.dragging = false;
             if (this.onRelease != null) {
                 this.onRelease.run();

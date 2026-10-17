@@ -18,11 +18,11 @@ public final class LightSectionRange {
     }
 
     public static int minSection(LevelHeightAccessor height) {
-        return height.getMinSectionY() - 1;
+        return Math.floorDiv(height.getMinY(), 16) - 1;
     }
 
     public static int maxSection(LevelHeightAccessor height) {
-        return height.getMaxSectionY() + 1;
+        return Math.floorDiv(height.getMaxY(), 16) + 1;
     }
 
     public static int minY(LevelHeightAccessor height) {

@@ -6,10 +6,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * Minimal custom widget contract. Vanilla {@code Button}/{@code Checkbox}/
  * {@code EditBox} are intentionally not used anywhere in the editor;
  * widgets only rely on raw {@link GuiGraphicsExtractor} primitives.
- *
- * <p>Input arrives with vanilla 26.x event records already unpacked by
- * {@link LightEditorScreen} (see {@code MouseButtonEvent}/{@code KeyEvent}/
- * {@code CharacterEvent}); modifiers follow the SDL keymod mask.
  */
 public interface LeWidget {
     void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick);
@@ -31,10 +27,6 @@ public interface LeWidget {
     }
 
     default boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return false;
-    }
-
-    default boolean keyReleased(int keyCode, int scanCode, int modifiers) {
         return false;
     }
 

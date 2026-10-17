@@ -70,8 +70,7 @@ public class LePopup {
         }
         int px = this.panelX(screenWidth);
         int py = this.panelY(screenHeight);
-        LeTheme.frame(graphics, px, py,
-                this.width, this.height, LeTheme.PANEL_BG, LeTheme.PANEL_BORDER);
+        LeTheme.frame(graphics, px, py, this.width, this.height, LeTheme.PANEL_BG, LeTheme.PANEL_BORDER);
         graphics.centeredText(Minecraft.getInstance().font, this.title,
                 px + this.width / 2, py + 8, LeTheme.TEXT);
     }
@@ -125,15 +124,6 @@ public class LePopup {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         for (LeWidget child : this.children) {
             if (child.isFocused() && child.keyPressed(keyCode, scanCode, modifiers)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-        for (LeWidget child : this.children) {
-            if (child.isFocused() && child.keyReleased(keyCode, scanCode, modifiers)) {
                 return true;
             }
         }

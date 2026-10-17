@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "me.tewek.lightengine.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_21",
   "minVersion": "0.8.5",
   "mixins": [
     "BlockStateBaseMixin",
@@ -13,10 +13,14 @@
     "PlayerChunkSenderMixin",
     "MinecraftServerMixin",
     "ThreadedLightCheckMixin",
-    "LightCoordsUtilMixin"
+    "LevelChunkMixin"
   ],
   "client": [
-    "PauseScreenMixin"
+    "LevelRendererMixin",
+    "ModelBlockRendererMixin",
+    "LiquidBlockRendererMixin",
+    "PauseScreenMixin",
+    "sodium.SodiumBlockRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

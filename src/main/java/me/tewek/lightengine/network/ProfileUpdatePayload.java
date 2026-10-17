@@ -10,8 +10,12 @@ import net.minecraft.resources.Identifier;
  * Client -&gt; server editor delta: upsert one block profile.
  * A negative radius means removal (reset to vanilla emission).
  * The server applies it only for operators (permission level 2+).
+ * Color is packed {@code 0xRRGGBB}; unknown/negative values fall back to default.
+ * {@code tintEnabled} is the per-profile "use light color" switch: false keeps
+ * the extended radius but renders fully default vanilla light.
  */
-public record ProfileUpdatePayload(Identifier id, int radius, boolean ignoreConditions) implements CustomPacketPayload {
+public record ProfileUpdatePayload(Identifier id, int radius, boolean ignoreConditions, int color,
+                                   boolean tintEnabled) implements CustomPacketPayload {
     public static final Type<ProfileUpdatePayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath("lightengine", "profile_update"));
 
@@ -20,6 +24,8 @@ public record ProfileUpdatePayload(Identifier id, int radius, boolean ignoreCond
                     Identifier.STREAM_CODEC, ProfileUpdatePayload::id,
                     ByteBufCodecs.VAR_INT, ProfileUpdatePayload::radius,
                     ByteBufCodecs.BOOL, ProfileUpdatePayload::ignoreConditions,
+                    ByteBufCodecs.VAR_INT, ProfileUpdatePayload::color,
+                    ByteBufCodecs.BOOL, ProfileUpdatePayload::tintEnabled,
                     ProfileUpdatePayload::new);
 
     @Override

@@ -50,8 +50,7 @@ public class LeButton implements LeWidget {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // SDL button numbering (button == 1 is left).
-        if (button == LightEditorScreen.LEFT_BUTTON && this.active && this.isMouseOver(mouseX, mouseY)) {
+        if (button == 0 && this.active && this.isMouseOver(mouseX, mouseY)) {
             Minecraft.getInstance().getSoundManager()
                     .play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             this.onPress.onPress(this);

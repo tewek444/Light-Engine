@@ -38,7 +38,7 @@ public final class LeDumpCommand {
         ServerLevel level = src.getLevel();
         LightFieldStore store = LightFieldStore.forLevel(level);
         int minY = Math.max(level.getMinY() - 32, center.getY() - r - 16);
-        int maxY = Math.min(level.getMaxY() + 32, center.getY() + r + 16);
+        int maxY = Math.min(level.getMaxY() + 1 + 32, center.getY() + r + 16);
         int total = 0;
         int shown = 0;
         StringBuilder sb = new StringBuilder();
