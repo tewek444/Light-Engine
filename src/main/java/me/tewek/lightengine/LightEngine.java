@@ -97,7 +97,7 @@ public class LightEngine {
     public void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel() instanceof Level level) {
             try {
-                LightFieldStore.forLevel(level).evictChunk(
+                LightFieldStore.forLevel(level).evictAfterSave(level, 
                         event.getChunk().getPos().x, event.getChunk().getPos().z);
                 ChromaTint.onChunkUnload(level, event.getChunk().getPos());
             } catch (Exception ex) {
