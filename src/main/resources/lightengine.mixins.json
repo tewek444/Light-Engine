@@ -12,11 +12,15 @@
     "ChunkSerializerMixin",
     "PlayerChunkSenderMixin",
     "MinecraftServerMixin",
-    "ThreadedLightCheckMixin"
+    "ThreadedLightCheckMixin",
+    "LevelChunkMixin"
   ],
   "client": [
     "LevelRendererMixin",
-    "PauseScreenMixin"
+    "ModelBlockRendererMixin",
+    "LiquidBlockRendererMixin",
+    "PauseScreenMixin",
+    "sodium.SodiumBlockRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

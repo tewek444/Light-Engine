@@ -53,6 +53,12 @@ public abstract class ChunkSerializerMixin {
         if (tag == null || level == null || pos == null) {
             return;
         }
+        // Vanilla drops stored light when it must relight the chunk (version
+        // upgrade, interrupted lighting). Stale extended cells would then read
+        // as "already lit" and stop the relight wave: skip them too.
+        if (cir.getReturnValue() == null || !cir.getReturnValue().isLightCorrect()) {
+            return;
+        }
         try {
             LightField.readChunk(level, tag, pos.x, pos.z);
         } catch (Exception ignored) {

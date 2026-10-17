@@ -46,7 +46,7 @@ authors="Tewek"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Edit the lighting however you like.
+Per-block light radius and true colored light, with an API for other mods.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.

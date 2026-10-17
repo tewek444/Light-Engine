@@ -99,6 +99,19 @@ public class LeIconButton extends LeButton {
         graphics.fill(cx + 4, y + 8, cx + 5, y + 11, c);
     }
 
+    /** Copy glyph, 12x12: two overlapping page outlines. */
+    public static void drawCopy(GuiGraphics graphics, int x, int y, int s) {
+        int c = LeTheme.TEXT;
+        graphics.fill(x + 4, y + 1, x + 10, y + 2, c);
+        graphics.fill(x + 4, y + 1, x + 5, y + 8, c);
+        graphics.fill(x + 9, y + 1, x + 10, y + 8, c);
+        graphics.fill(x + 4, y + 7, x + 10, y + 8, c);
+        graphics.fill(x + 1, y + 4, x + 7, y + 5, c);
+        graphics.fill(x + 1, y + 10, x + 7, y + 11, c);
+        graphics.fill(x + 1, y + 4, x + 2, y + 11, c);
+        graphics.fill(x + 6, y + 4, x + 7, y + 11, c);
+    }
+
     public static Component dotTooltip() {
         String remote = UpdateChecker.remoteVersion();
         if (UpdateChecker.getState() == UpdateChecker.State.AVAILABLE && !remote.isEmpty()) {

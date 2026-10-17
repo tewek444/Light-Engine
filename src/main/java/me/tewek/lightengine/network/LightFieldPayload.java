@@ -11,12 +11,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server -&gt; client chunk payload, v2 format ({@code lightengine:light_field_data}).
- * Hand-encoded section blobs (section Y + zlib bytes); no NBT, no GZIP.
+ * Server -&gt; client chunk payload, v3 format ({@code lightengine:light_field_data}).
+ * Hand-encoded section blobs (section Y + zlib RGB bytes); no NBT, no GZIP.
  * Never sent when a chunk has no extended data.
  */
 public record LightFieldPayload(int chunkX, int chunkZ, List<SectionBlob> sections) implements CustomPacketPayload {
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = "3";
 
     private static final int MAX_SECTIONS = 128;
     private static final int MAX_BLOB = 1 << 16;
@@ -73,5 +73,10 @@ public record LightFieldPayload(int chunkX, int chunkZ, List<SectionBlob> sectio
             }
         }
         return new LightFieldPayload(chunkX, chunkZ, List.copyOf(sections));
+    }
+
+    /** Clear signal: client must evict the chunk even though there is no data. */
+    public static LightFieldPayload clear(int chunkX, int chunkZ) {
+        return new LightFieldPayload(chunkX, chunkZ, List.of());
     }
 }

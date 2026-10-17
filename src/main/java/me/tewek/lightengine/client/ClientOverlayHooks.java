@@ -8,6 +8,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -71,5 +72,14 @@ public final class ClientOverlayHooks {
         Vec3 cam = event.getCamera().getPosition();
         LightOverlayRenderer.render(event.getPoseStack(), cam.x, cam.y, cam.z,
                 net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource());
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        try {
+            ColorLightEnv.tick();
+        } catch (Exception ex) {
+            LightEngine.LOGGER.debug("Colored light env tick failed", ex);
+        }
     }
 }

@@ -38,3 +38,10 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+### Local junk ###
+*.log
+*.lnk
+port-build.*
+gen-refmap.py
+test-screens/

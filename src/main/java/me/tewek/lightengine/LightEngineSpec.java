@@ -2,12 +2,9 @@ package me.tewek.lightengine;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
 import com.electronwill.nightconfig.core.UnmodifiableCommentedConfig;
-import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import net.neoforged.fml.config.IConfigSpec;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.loading.FMLPaths;
 
-import java.nio.file.Path;
 
 /**
  * COMMON spec for the single {@code lightengine-common.toml} file.
@@ -20,10 +17,6 @@ import java.nio.file.Path;
 public final class LightEngineSpec implements IConfigSpec {
     public static final LightEngineSpec INSTANCE = new LightEngineSpec();
 
-    public static final boolean DEFAULT_ENABLED = true;
-    public static final String DEFAULT_CNFLVL = "1.0.0";
-    public static final boolean DEFAULT_CHECK_UPDATES = true;
-    public static final String FILE_NAME = "lightengine-common.toml";
 
     private LightEngineSpec() {
     }
@@ -42,7 +35,9 @@ public final class LightEngineSpec implements IConfigSpec {
     public boolean isCorrect(UnmodifiableCommentedConfig config) {
         return config.get("enabled") instanceof Boolean
                 && config.get("cnflvl") instanceof String
-                && config.get("check_updates") instanceof Boolean;
+                && config.get("check_updates") instanceof Boolean
+                && config.get("color_strength") instanceof Number
+                && !config.contains("min_color_correction");
     }
 
     @Override
@@ -57,32 +52,31 @@ public final class LightEngineSpec implements IConfigSpec {
             try {
                 loadedConfig.save();
             } catch (Exception ex) {
-                LightEngine.LOGGER.warn("Could not save {}", FILE_NAME, ex);
+                LightEngine.LOGGER.warn("Could not save {}", ConfigFile.FILE_NAME, ex);
             }
         }
         Config.ensureExampleComment();
     }
 
-    /**
-     * Writes {@code enabled}/{@code cnflvl} from the settings screen.
-     * Loads and saves the raw file, so profile tables and comments survive.
-     */
-    public static void saveManual(boolean enabled, String cnflvl) {
-        Path path = FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
-        CommentedFileConfig file = CommentedFileConfig.builder(path).sync().build();
-        try {
-            file.load();
-            file.set("enabled", enabled);
-            file.set("cnflvl", cnflvl == null || cnflvl.isBlank() ? DEFAULT_CNFLVL : cnflvl);
-            file.save();
-            Config.ensureExampleComment();
-        } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not save {}", FILE_NAME, ex);
-        } finally {
+    static void onLoad(net.neoforged.fml.event.config.ModConfigEvent.Loading event) {
+        reload(event.getConfig());
+    }
+
+    static void onReload(net.neoforged.fml.event.config.ModConfigEvent.Reloading event) {
+        reload(event.getConfig());
+    }
+
+    private static void reload(ModConfig config) {
+        if (config.getSpec() != INSTANCE || config.getLoadedConfig() == null) {
+            return;
+        }
+        if (Config.refresh(config.getLoadedConfig().config())) {
             try {
-                file.close();
-            } catch (Exception ignored) {
+                config.getLoadedConfig().save();
+            } catch (Exception ex) {
+                LightEngine.LOGGER.warn("Could not save {}", ConfigFile.FILE_NAME, ex);
             }
         }
+        Config.ensureExampleComment();
     }
 }

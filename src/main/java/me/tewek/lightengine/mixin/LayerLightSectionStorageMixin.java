@@ -20,10 +20,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Mirrors block-light levels above vanilla range into the active field
- * (v1 store or v2 light field, see {@link LightField}).
- * Vanilla storage always keeps a 0-15 clamp; reads return the extended value
- * when our cell is non-zero. Sky layer and the disabled state are untouched.
+ * Mirrors block-light levels above vanilla range into the v3 chroma field
+ * (grayscale; hue is resolved read-time from the emitter map, see
+ * {@code ChromaTint}). Vanilla storage always keeps a 0-15 clamp; reads
+ * return the extended value when our cell is non-zero. Sky layer and the
+ * disabled state are untouched.
+ *
+ * <p>The vanilla engine stays the SOLE propagator (async light thread,
+ * correct occlusion, no boxes): this mirror only persists what it computed.
+ * Never flood here — a sync flood on the server thread freezes the game.</p>
  */
 @Mixin(LayerLightSectionStorage.class)
 public abstract class LayerLightSectionStorageMixin {

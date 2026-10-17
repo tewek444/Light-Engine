@@ -68,7 +68,13 @@ public final class LightOverlayRenderer {
                             continue;
                         }
                         int value = level.getBrightness(LightLayer.BLOCK, npos);
-                        drawFace(pose, buffer, font, pos, dir, camX, camY, camZ, value);
+                        int tint = -1;
+                        try {
+                            tint = me.tewek.lightengine.lightfield.ChromaTint.forSurface(
+                                    level, npos, level.getBlockState(npos));
+                        } catch (Exception ignored) {
+                        }
+                        drawFace(pose, buffer, font, pos, dir, camX, camY, camZ, value, tint);
                     }
                 }
             }
@@ -77,7 +83,7 @@ public final class LightOverlayRenderer {
 
     private static void drawFace(PoseStack pose, MultiBufferSource buffer, Font font,
                                  BlockPos pos, Direction dir,
-                                 double camX, double camY, double camZ, int value) {
+                                 double camX, double camY, double camZ, int value, int tint) {
         double fx = pos.getX() + 0.5 + dir.getStepX() * 0.51 - camX;
         double fy = pos.getY() + 0.5 + dir.getStepY() * 0.51 - camY;
         double fz = pos.getZ() + 0.5 + dir.getStepZ() * 0.51 - camZ;
@@ -96,6 +102,16 @@ public final class LightOverlayRenderer {
         String text = Integer.toString(value);
         float w = font.width(text);
         int color = value <= 0 ? 0xFF5555 : value <= 7 ? 0xFFDD55 : 0x55FF55;
+        if (tint > 0) {
+            // Live detector: digits take the winner hue (same query as meshes).
+            int cr = (color >> 16) & 0xFF;
+            int cg = (color >> 8) & 0xFF;
+            int cb = color & 0xFF;
+            cr = cr * ((tint >> 16) & 0xFF) / 255;
+            cg = cg * ((tint >> 8) & 0xFF) / 255;
+            cb = cb * (tint & 0xFF) / 255;
+            color = (cr << 16) | (cg << 8) | cb;
+        }
         font.drawInBatch(text, -w / 2.0F, -4.0F, color, false,
                 pose.last().pose(), buffer, Font.DisplayMode.NORMAL, 0, FULL_BRIGHT);
         pose.popPose();

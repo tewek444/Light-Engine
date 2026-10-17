@@ -13,7 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Client-only clamp: the packed block component is folded back to the
  * vanilla maximum so extended levels never overexpose the frame.
- * Sky is passed through untouched.
+ * Sky is passed through untouched. Alpha4 keeps this guard while the true
+ * RGB terrain tint lands (Sodium/Iris path); entity tint goes through
+ * {@link me.tewek.lightengine.LightEngineApi} next.
  */
 @Mixin(LevelRenderer.class)
 public abstract class LevelRendererMixin {

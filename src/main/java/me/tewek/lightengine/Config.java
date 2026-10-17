@@ -1,8 +1,6 @@
 package me.tewek.lightengine;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
-import net.neoforged.fml.event.config.ModConfigEvent;
-import net.neoforged.fml.loading.FMLPaths;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,37 +25,19 @@ public final class Config {
 
     /** Whether the background update check may run (client reads this). */
     private static volatile boolean checkUpdates = true;
+    private static volatile int colorStrength = ConfigFile.DEFAULT_COLOR_STRENGTH;
 
     public static boolean isCheckUpdates() {
         return checkUpdates;
     }
 
-    static void onLoad(ModConfigEvent.Loading event) {
-        if (event.getConfig().getSpec() == LightEngineSpec.INSTANCE) {
-            boolean changed = refresh(event.getConfig().getLoadedConfig().config());
-            if (changed) {
-                try {
-                    event.getConfig().getLoadedConfig().save();
-                } catch (Exception ex) {
-                    LightEngine.LOGGER.warn("Could not save {}", LightEngineSpec.FILE_NAME, ex);
-                }
-            }
-            ensureExampleComment();
-        }
+    /** How strongly profile colors replace the vanilla warm block light, 0-100 percent. */
+    public static int colorStrength() {
+        return colorStrength;
     }
 
-    static void onReload(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getSpec() == LightEngineSpec.INSTANCE) {
-            boolean changed = refresh(event.getConfig().getLoadedConfig().config());
-            if (changed) {
-                try {
-                    event.getConfig().getLoadedConfig().save();
-                } catch (Exception ex) {
-                    LightEngine.LOGGER.warn("Could not save {}", LightEngineSpec.FILE_NAME, ex);
-                }
-            }
-            ensureExampleComment();
-        }
+    public static void setColorStrength(int value) {
+        colorStrength = Math.clamp(value, 0, 100);
     }
 
     /**
@@ -67,10 +47,10 @@ public final class Config {
      * the file-level append. Idempotent: converges after at most one extra
      * watcher cycle, never loops.
      */
-    static void ensureExampleComment() {
+    public static void ensureExampleComment() {
         Path path;
         try {
-            path = FMLPaths.CONFIGDIR.get().resolve(LightEngineSpec.FILE_NAME);
+            path = ConfigFile.path();
         } catch (Exception ex) {
             return;
         }
@@ -103,16 +83,18 @@ public final class Config {
             out.append("#[\"minecraft:glowstone\"]\n");
             out.append("#light_radius = 30\n");
             out.append("#ignore_conditions = false\n");
+            out.append("#light_color = \"#FF914C\"\n");
+            out.append("#light_color_enabled = true\n");
             Files.writeString(path, out.toString(), StandardCharsets.UTF_8);
         } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not update {}", LightEngineSpec.FILE_NAME, ex);
+            LightEngine.LOGGER.warn("Could not update {}", ConfigFile.FILE_NAME, ex);
         }
     }
 
-    static boolean refresh(CommentedConfig root) {
+    public static boolean refresh(CommentedConfig root) {
         boolean changed = false;
 
-        String cnflvl = LightEngineSpec.DEFAULT_CNFLVL;
+        String cnflvl = ConfigFile.DEFAULT_CNFLVL;
         Object cnflvlRaw = root.get("cnflvl");
         if (cnflvlRaw instanceof String s) {
             cnflvl = s;
@@ -121,7 +103,7 @@ public final class Config {
             changed = true;
         }
 
-        boolean enabled = LightEngineSpec.DEFAULT_ENABLED;
+        boolean enabled = ConfigFile.DEFAULT_ENABLED;
         Object enabledRaw = root.get("enabled");
         if (enabledRaw instanceof Boolean b) {
             enabled = b;
@@ -130,7 +112,7 @@ public final class Config {
             changed = true;
         }
 
-        boolean check = LightEngineSpec.DEFAULT_CHECK_UPDATES;
+        boolean check = ConfigFile.DEFAULT_CHECK_UPDATES;
         Object checkRaw = root.get("check_updates");
         if (checkRaw instanceof Boolean b) {
             check = b;
@@ -139,6 +121,21 @@ public final class Config {
             changed = true;
         }
         checkUpdates = check;
+
+        int strength = ConfigFile.DEFAULT_COLOR_STRENGTH;
+        Object strengthRaw = root.get("color_strength");
+        if (strengthRaw instanceof Number number) {
+            strength = Math.clamp(number.intValue(), 0, 100);
+        } else {
+            root.set("color_strength", strength);
+            changed = true;
+        }
+        colorStrength = strength;
+        // Alpha4 key, meaningless with the Alpha5 color model.
+        if (root.contains("min_color_correction")) {
+            root.remove("min_color_correction");
+            changed = true;
+        }
 
         Map<net.minecraft.resources.ResourceLocation, LightProfileRegistry.Profile> fresh = new HashMap<>();
         for (Map.Entry<String, Object> entry : root.valueMap().entrySet()) {
@@ -177,15 +174,48 @@ public final class Config {
             if (ignoreRaw instanceof Boolean b) {
                 ignoreConditions = b;
             }
-            fresh.put(id, new LightProfileRegistry.Profile(radius, ignoreConditions));
+            int color = LightProfileRegistry.DEFAULT_COLOR;
+            Object colorRaw = table.get("light_color");
+            if (colorRaw != null) {
+                color = LightProfileRegistry.parseColor(colorRaw);
+            }
+            boolean tintEnabled = true;
+            Object tintRaw = table.get("light_color_enabled");
+            if (tintRaw instanceof Boolean b) {
+                tintEnabled = b;
+            }
+            fresh.put(id, new LightProfileRegistry.Profile(radius, ignoreConditions, color, tintEnabled));
         }
 
         // No profiles at all is fine: the registry stays empty (vanilla
         // lighting) and ensureExampleComment() documents the format in the
         // file after each save.
+        // First run: seed the default preset so the mod works out of the box.
+        // `preset_applied` keeps it one-shot (deleting every profile later is
+        // respected; delete the flag to re-seed). `preset` picks which one.
+        if (fresh.isEmpty() && !(root.get("preset_applied") instanceof Boolean)) {
+            Object presetRaw = root.get("preset");
+            LightPresets.Mode mode = LightPresets.Mode.byKey(presetRaw instanceof String ps ? ps : null);
+            for (Map.Entry<net.minecraft.resources.ResourceLocation, LightProfileRegistry.Profile> e
+                    : LightPresets.build(mode).entrySet()) {
+                LightProfileRegistry.Profile p = e.getValue();
+                CommentedConfig table = root.createSubConfig();
+                table.set("light_radius", p.lightRadius());
+                table.set("light_color", LightProfileRegistry.formatColor(p.color()));
+                table.set("light_color_enabled", p.tintEnabled());
+                table.set("ignore_conditions", p.ignoreConditions());
+                root.set(java.util.List.of(e.getKey().toString()), table);
+                fresh.put(e.getKey(), p);
+            }
+            root.set("preset", mode.key);
+            root.set("preset_applied", true);
+            changed = true;
+        }
         LightProfileRegistry.apply(enabled, cnflvl, fresh);
         StringBuilder detail = new StringBuilder();
         int shown = 0;
+        int capped = 0;
+        String cappedExample = "";
         for (Map.Entry<net.minecraft.resources.ResourceLocation, LightProfileRegistry.Profile> e : fresh.entrySet()) {
             if (shown >= 12) {
                 detail.append(", ...");
@@ -194,11 +224,24 @@ public final class Config {
             if (shown > 0) {
                 detail.append(", ");
             }
-            detail.append(e.getKey()).append('=').append(e.getValue().lightRadius());
-            if (e.getValue().ignoreConditions()) {
+            LightProfileRegistry.Profile p = e.getValue();
+            detail.append(e.getKey()).append('=').append(p.lightRadius())
+                    .append(LightProfileRegistry.formatColor(p.color()));
+            if (p.ignoreConditions()) {
                 detail.append('*');
             }
+            if (p.lightRadius() > LightProfileRegistry.EFFECTIVE_MAX_RADIUS) {
+                capped++;
+                if (cappedExample.isEmpty()) {
+                    cappedExample = e.getKey().toString();
+                }
+            }
             shown++;
+        }
+        if (capped > 0) {
+            LightEngine.LOGGER.warn(
+                    "LightEngine: {} profile(s) exceed the effective propagation cap {} (e.g. {}); stored values kept, waves capped (perf)",
+                    capped, LightProfileRegistry.EFFECTIVE_MAX_RADIUS, cappedExample);
         }
         LightEngine.LOGGER.info("LightEngine config: enabled={}, cnflvl={}, check_updates={}, profiles={} [{}]",
                 enabled, cnflvl, check, fresh.size(), detail);

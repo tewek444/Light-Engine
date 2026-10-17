@@ -1,30 +1,21 @@
+# Light Engine — NeoForge 1.21.1
 
-Installation information
-=======
+Source code of Light Engine 1.0.0 for Minecraft 1.21.1 (NeoForge).
+Description, screenshots, config and API: see the [main page](https://github.com/tewek444/Light-Engine).
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Исходный код Light Engine 1.0.0 для Minecraft 1.21.1 (NeoForge).
+Описание, скриншоты, конфиг и API — на [главной странице](https://github.com/tewek444/Light-Engine/blob/main/README_ru.md).
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Build / Сборка
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+```
+./gradlew build
+```
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+JDK 21. The jar is written to `build/libs`. / Jar появится в `build/libs`.
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+## License / Лицензия
 
-License
-=======
-This project is licensed under the MIT License. See LICENSE for details.
-Note: TEMPLATE_LICENSE.txt applies only to the template files as supplied by github.com/NeoForged/MDK.
+MIT, see [LICENSE](LICENSE).
+`TEMPLATE_LICENSE.txt` applies only to the template files as supplied by
+[NeoForged/MDK](https://github.com/NeoForged/MDK).
