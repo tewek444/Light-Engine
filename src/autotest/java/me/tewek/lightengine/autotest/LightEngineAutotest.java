@@ -38,6 +38,14 @@ public class LightEngineAutotest {
         cmd(0, "setblock 0 -60 0 minecraft:soul_lantern");
         cmd(0, "tp @p 0.5 -56 -9.5 0 30");
         shot(60, "le_lantern_on");
+        this.steps.add(new Step(0, () -> {
+            MinecraftServer srv = Minecraft.getInstance().getSingleplayerServer();
+            srv.execute(() -> srv.getPlayerList().getPlayers().forEach(p -> srv.getPlayerList().op(p.nameAndId())));
+        }));
+        this.steps.add(new Step(5, () -> Minecraft.getInstance().player.connection.sendCommand("le light_level")));
+        shot(10, "le_cmd_overlay");
+        this.steps.add(new Step(0, () -> Minecraft.getInstance().player.connection.sendCommand("light_engine light_level")));
+        this.steps.add(new Step(0, () -> Minecraft.getInstance().player.connection.sendCommand("le dump 0 -60 0")));
         cmd(0, "setblock -6 -60 -2 minecraft:torch");
         shot(40, "le_lantern_and_torch");
         cmd(0, "setblock 0 -60 0 minecraft:air");

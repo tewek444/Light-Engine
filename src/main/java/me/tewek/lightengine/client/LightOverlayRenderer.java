@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.LightLayer;
 
 /**
- * Debug overlay toggled by {@code /lightengine light_level}.
+ * Debug overlay toggled by {@code /le light_level}.
  * Draws the incoming block-light value on every visible face of every
  * non-air block in a radius around the camera:
  * green = 8+ (safe), yellow = 1-7, red = 0 (hostile mobs can spawn).
@@ -89,6 +89,14 @@ public final class LightOverlayRenderer {
         double fz = pos.getZ() + 0.5 + dir.getStepZ() * 0.51 - camZ;
         pose.pushPose();
         pose.translate(fx, fy, fz);
+        if (dir == Direction.UP || dir == Direction.DOWN) {
+            // Floor/ceiling digits: bottom edge toward the camera so they read upright.
+            float yaw = Math.abs(fz) >= Math.abs(fx) ? (fz < 0 ? 0.0F : 180.0F) : (fx < 0 ? 90.0F : -90.0F);
+            if (dir == Direction.DOWN) {
+                yaw += 180.0F;
+            }
+            pose.rotateDegrees(Axis.YP, yaw);
+        }
         switch (dir) {
             case NORTH -> pose.rotateDegrees(Axis.YP, 180.0F);
             case EAST -> pose.rotateDegrees(Axis.YP, 90.0F);
