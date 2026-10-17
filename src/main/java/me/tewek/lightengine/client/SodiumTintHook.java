@@ -78,7 +78,7 @@ public final class SodiumTintHook {
             for (int i = 0; i < 4; i++) {
                 int lm = (int) getLight.invoke(quad, i);
                 // Extended block light never reaches the shader (overexposure).
-                if (LightCoordsUtil.block(lm) > 15) {
+                if (((lm & 0xFFFF) >>> 4) > 15) {
                     lm = LightCoordsUtil.pack(15, LightCoordsUtil.sky(lm));
                     setLight.invoke(quad, i, lm);
                 }
