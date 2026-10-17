@@ -53,25 +53,29 @@ public final class LightEngineClient {
 
     @SubscribeEvent
     public static void onClientCommands(RegisterClientCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("lightengine")
-                .then(Commands.literal("light_level").executes(ctx -> {
-                    LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
-                    return 1;
-                }))
-                .then(Commands.literal("update_check")
-                        .executes(ctx -> {
-                            UpdateChecker.checkCurrent(LightEngine.LOADER);
-                            tell("LightEngine: checking for updates...");
-                            return 1;
-                        })
-                        .then(Commands.argument("version", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    String fake = StringArgumentType.getString(ctx, "version");
-                                    UpdateChecker.check(fake, LightEngine.LOADER);
-                                    tell("LightEngine: checking for updates as " + fake + "...");
-                                    return 1;
-                                }))));
-        event.getDispatcher().register(Commands.literal("leclient").executes(ctx -> LeClientDump.run()));
+        for (String root : new String[]{"le", "light_engine"}) {
+            event.getDispatcher().register(Commands.literal(root)
+                    .then(Commands.literal("light_level").executes(ctx -> {
+                        LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
+                        return 1;
+                    }))
+                    .then(Commands.literal("update_check")
+                            .executes(ctx -> {
+                                UpdateChecker.checkCurrent(LightEngine.LOADER);
+                                tell("LightEngine: checking for updates...");
+                                return 1;
+                            })
+                            .then(Commands.argument("version", StringArgumentType.word())
+                                    .executes(ctx -> {
+                                        String fake = StringArgumentType.getString(ctx, "version");
+                                        UpdateChecker.check(fake, LightEngine.LOADER);
+                                        tell("LightEngine: checking for updates as " + fake + "...");
+                                        return 1;
+                                    }))));
+        }
+        for (String root : new String[]{"le", "light_engine"}) {
+            event.getDispatcher().register(Commands.literal(root).then(Commands.literal("dump_client").executes(ctx -> LeClientDump.run())));
+        }
     }
 
     private static void tell(String message) {
