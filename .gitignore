@@ -1,0 +1,11 @@
+build/
+.gradle/
+run/
+logs/
+
+### Local junk ###
+*.log
+*.lnk
+port-build.*
+gen-refmap.py
+test-screens/
