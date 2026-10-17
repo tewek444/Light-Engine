@@ -26,6 +26,11 @@ import net.minecraft.world.phys.Vec3;
 
 /** Fabric client entrypoint: payload receivers, client events, client commands, overlay. */
 public class LightEngineClient implements ClientModInitializer {
+    /** Server-side /le subcommands the client tree must hand over. */
+    private static final String[] SERVER_SUBCOMMANDS = {"dump", "repair"};
+    private static final com.mojang.brigadier.exceptions.SimpleCommandExceptionType FORWARD_TO_SERVER =
+            com.mojang.brigadier.exceptions.CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand();
+
     @Override
     public void onInitializeClient() {
         ClientPlayNetworking.registerGlobalReceiver(LightFieldPayload.TYPE, (client, handler, buf, sender) -> {
@@ -67,25 +72,43 @@ public class LightEngineClient implements ClientModInitializer {
                     Minecraft.getInstance().renderBuffers().bufferSource());
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(ClientCommandManager.literal("lightengine")
-                    .then(ClientCommandManager.literal("light_level").executes(ctx -> {
-                        LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
-                        return 1;
-                    }))
-                    .then(ClientCommandManager.literal("update_check")
+            for (String root : new String[]{"le", "light_engine"}) {
+                dispatcher.register(ClientCommandManager.literal(root)
+                        .then(ClientCommandManager.literal("light_level").executes(ctx -> {
+                            LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
+                            return 1;
+                        }))
+                        .then(ClientCommandManager.literal("update_check")
+                                .executes(ctx -> {
+                                    UpdateChecker.checkCurrent(LightEngine.LOADER);
+                                    tell("LightEngine: checking for updates...");
+                                    return 1;
+                                })
+                                .then(ClientCommandManager.argument("version", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            String fake = StringArgumentType.getString(ctx, "version");
+                                            UpdateChecker.check(fake, LightEngine.LOADER);
+                                            tell("LightEngine: checking for updates as " + fake + "...");
+                                            return 1;
+                                        }))));
+            }
+            for (String root : new String[]{"le", "light_engine"}) {
+                dispatcher.register(ClientCommandManager.literal(root).then(ClientCommandManager.literal("dump_client").executes(ctx -> LeClientDump.run())));
+            }
+            // Server subcommands under the shared root: matched here and rethrown as
+            // "unknown command" so Fabric API forwards them to the server.
+            for (String root : new String[]{"le", "light_engine"}) {
+                for (String server : SERVER_SUBCOMMANDS) {
+                    dispatcher.register(ClientCommandManager.literal(root).then(ClientCommandManager.literal(server)
                             .executes(ctx -> {
-                                UpdateChecker.checkCurrent(LightEngine.LOADER);
-                                tell("LightEngine: checking for updates...");
-                                return 1;
+                                throw FORWARD_TO_SERVER.create();
                             })
-                            .then(ClientCommandManager.argument("version", StringArgumentType.word())
+                            .then(ClientCommandManager.argument("args", StringArgumentType.greedyString())
                                     .executes(ctx -> {
-                                        String fake = StringArgumentType.getString(ctx, "version");
-                                        UpdateChecker.check(fake, LightEngine.LOADER);
-                                        tell("LightEngine: checking for updates as " + fake + "...");
-                                        return 1;
+                                        throw FORWARD_TO_SERVER.create();
                                     }))));
-            dispatcher.register(ClientCommandManager.literal("leclient").executes(ctx -> LeClientDump.run()));
+                }
+            }
         });
     }
 
