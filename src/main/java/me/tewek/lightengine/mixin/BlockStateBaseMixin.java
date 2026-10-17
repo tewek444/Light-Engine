@@ -12,14 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * Profile-driven emission: a profiled block reports its configured radius
  * instead of the vanilla value. Original behavior is kept when disabled
  * or when the block has no profile.
- *
- * <p>Forge 1.20.1 production runs vanilla members in SRG names, so the
- * target below is the SRG name of {@code getLightEmission} (see
- * gen-refmap.py). {@code remap = false} pins it: no refmap involved.
  */
 @Mixin(BlockBehaviour.BlockStateBase.class)
 public abstract class BlockStateBaseMixin {
-    @Inject(method = "m_60791_", at = @At("RETURN"), cancellable = true, remap = false)
+    @Inject(method = "getLightEmission", at = @At("RETURN"), cancellable = true)
     private void lightengine$overrideEmission(CallbackInfoReturnable<Integer> cir) {
         BlockState self = (BlockState) (Object) this;
         cir.setReturnValue(LightProfileRegistry.emissionForState(self, cir.getReturnValue()));

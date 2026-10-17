@@ -112,9 +112,9 @@ public class LePopup {
         return true;
     }
 
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         for (int i = this.children.size() - 1; i >= 0; i--) {
-            if (this.children.get(i).mouseScrolled(mouseX, mouseY, delta)) {
+            if (this.children.get(i).mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
                 return true;
             }
         }

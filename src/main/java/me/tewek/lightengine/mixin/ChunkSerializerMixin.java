@@ -2,7 +2,6 @@ package me.tewek.lightengine.mixin;
 
 import me.tewek.lightengine.LightProfileRegistry;
 import me.tewek.lightengine.lightfield.LightField;
-import me.tewek.lightengine.lightfield.LightFieldStore;
 import me.tewek.lightengine.lightfield.LightSectionRange;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -19,24 +18,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Persists the active field (v1 store or v2 light field, see {@link LightField})
  * inside the chunk tag. Chunks without data read exactly like vanilla.
- *
- * <p>SRG targets: {@code m_63454_} is {@code write} and {@code m_188230_} is
- * {@code read} (see gen-refmap.py). Pinned with {@code remap = false}.
  */
 @Mixin(ChunkSerializer.class)
 public abstract class ChunkSerializerMixin {
-    @Inject(method = "m_63454_(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ChunkAccess;)Lnet/minecraft/nbt/CompoundTag;",
-            at = @At("RETURN"), remap = false)
+    @Inject(method = "write(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ChunkAccess;)Lnet/minecraft/nbt/CompoundTag;",
+            at = @At("RETURN"))
     private static void lightengine$onWrite(ServerLevel level,
                                             ChunkAccess chunk,
                                             CallbackInfoReturnable<CompoundTag> cir) {
-        CompoundTag tag = cir.getReturnValue();
-        if (tag == null || level == null || chunk == null) {
+        if (!LightProfileRegistry.isEnabled()) {
             return;
         }
-        if (!LightProfileRegistry.isEnabled()) {
-            tag.remove(LightFieldStore.NBT_KEY);
-            tag.remove("lightengine:extended_light");
+        CompoundTag tag = cir.getReturnValue();
+        if (tag == null || level == null || chunk == null) {
             return;
         }
         try {
@@ -47,14 +41,20 @@ public abstract class ChunkSerializerMixin {
         }
     }
 
-    @Inject(method = "m_188230_(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/ai/village/poi/PoiManager;Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/level/chunk/ProtoChunk;",
-            at = @At("RETURN"), remap = false)
+    @Inject(method = "read(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/ai/village/poi/PoiManager;Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/world/level/chunk/ProtoChunk;",
+            at = @At("RETURN"))
     private static void lightengine$onRead(ServerLevel level,
                                            PoiManager poiManager,
                                            ChunkPos pos,
                                            CompoundTag tag,
                                            CallbackInfoReturnable<ProtoChunk> cir) {
         if (tag == null || level == null || pos == null) {
+            return;
+        }
+        // Vanilla drops stored light when it must relight the chunk (version
+        // upgrade, interrupted lighting). Stale extended cells would then read
+        // as "already lit" and stop the relight wave: skip them too.
+        if (cir.getReturnValue() == null || !cir.getReturnValue().isLightCorrect()) {
             return;
         }
         try {

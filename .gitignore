@@ -38,3 +38,14 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+build/
+.gradle/
+run/
+logs/
+
+### Local junk ###
+*.log
+*.lnk
+port-build.*
+gen-refmap.py
+test-screens/

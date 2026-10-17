@@ -22,7 +22,7 @@ public interface LeWidget {
         return false;
     }
 
-    default boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    default boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         return false;
     }
 

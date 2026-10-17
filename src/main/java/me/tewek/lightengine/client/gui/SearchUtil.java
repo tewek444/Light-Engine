@@ -87,7 +87,7 @@ public final class SearchUtil {
         try {
             Minecraft mc = Minecraft.getInstance();
             var resource = mc.getResourceManager()
-                    .getResource(new ResourceLocation("minecraft", "lang/en_us.json"));
+                    .getResource(new ResourceLocation("lang/en_us.json"));
             if (resource.isPresent()) {
                 try (var in = new InputStreamReader(resource.get().open(), StandardCharsets.UTF_8)) {
                     JsonObject root = JsonParser.parseReader(in).getAsJsonObject();

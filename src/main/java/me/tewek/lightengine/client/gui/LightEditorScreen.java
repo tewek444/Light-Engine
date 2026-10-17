@@ -3,6 +3,7 @@ package me.tewek.lightengine.client.gui;
 import com.mojang.blaze3d.platform.InputConstants;
 import me.tewek.lightengine.LightEngine;
 import me.tewek.lightengine.Config;
+import me.tewek.lightengine.ConfigFile;
 import me.tewek.lightengine.LightProfileRegistry;
 import me.tewek.lightengine.client.EditorSync;
 import me.tewek.lightengine.network.ProfileFileStore;
@@ -15,7 +16,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModList;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -88,6 +88,8 @@ public class LightEditorScreen extends Screen {
     private LeSlider radiusSlider;
     private LeTileGrid tileGrid;
     private LeTextField panelSearch;
+    private LeTextField colorField;
+    private boolean syncingColor;
 
     private int sceneX;
     private int sceneY;
@@ -140,6 +142,19 @@ public class LightEditorScreen extends Screen {
                 Component.translatable("lightengine.editor.ignore_conditions"),
                 false, this::onIgnore);
         this.widgets.add(this.signalToggle);
+        this.colorToggle = new LeToggle(lx + 8, 106, lw - 16, 20,
+                Component.translatable("lightengine.editor.use_light_color"),
+                true, this::onColorEnabled);
+        this.widgets.add(this.colorToggle);
+        this.colorSwatch = new LeColorSwatch(lx + 8, 130, 20,
+                () -> this.colorOf(this.activeId),
+                () -> this.colorToggle != null && this.colorToggle.isChecked(),
+                this::openColorPicker);
+        this.widgets.add(this.colorSwatch);
+        this.colorField = new LeTextField(lx + 8 + 24, 130, lw - 16 - 24, 20,
+                Component.translatable("lightengine.editor.light_color"), this::onColor);
+        this.colorField.setPlaceholder(Component.translatable("lightengine.editor.light_color_hint").getString());
+        this.widgets.add(this.colorField);
         this.logX = lx + 8;
         this.logW = lw - 16;
         this.logH = Math.max(30, (h - 40 - 112) / 2);
@@ -177,23 +192,29 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.colorToggle.setChecked(this.tintOf(this.activeId));
+        this.colorField.setEnabled(this.tintOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
     }
 
     private LeToggle signalToggle;
+
+    private LeToggle colorToggle;
+
+    private LeColorSwatch colorSwatch;
 
     private void addButton(LeButton button) {
         this.widgets.add(button);
     }
 
     /**
-     * Best-effort item icon for the scene pedestal. On 1.20.1 there is no
-     * data-component system, so a plain stack just works; null when the
-     * block has no item (callers draw the glass diamond instead).
+     * Best-effort item icon for the scene pedestal; null when the block
+     * has no item (callers draw the glass diamond instead).
      */
     static ItemStack safeIcon(Block block) {
         try {
-            ItemStack stack = new ItemStack(block.asItem());
+            ItemStack stack = BlockIcons.iconFor(block);
             return stack.isEmpty() ? null : stack;
         } catch (Exception ex) {
             return null;
@@ -208,6 +229,12 @@ public class LightEditorScreen extends Screen {
             return 0;
         }
         return block.defaultBlockState().getLightEmission();
+    }
+
+    /** Radius including unsaved edits (what the tile and slider should show). */
+    private int pendingRadius(ResourceLocation id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        return dirty != null ? dirty.lightRadius() : this.effectiveRadius(id);
     }
 
     private int effectiveRadius(ResourceLocation id) {
@@ -225,9 +252,13 @@ public class LightEditorScreen extends Screen {
         this.activeId = id;
         rememberedId = id;
         this.ensurePalette(id);
-        this.radiusSlider.setValue(this.effectiveRadius(id), false);
+        this.radiusSlider.setValue(this.pendingRadius(id), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(id));
+        this.colorToggle.setChecked(this.tintOf(id));
+        this.colorField.setEnabled(this.tintOf(id));
+        this.closeColorPicker();
+        this.syncColorField();
         this.refreshTiles();
     }
 
@@ -235,7 +266,8 @@ public class LightEditorScreen extends Screen {
         this.sliderValue = value;
         this.dirty = true;
         this.dirtyProfiles.put(this.activeId,
-                new LightProfileRegistry.Profile(value, this.signalToggle.isChecked()));
+                new LightProfileRegistry.Profile(value, this.signalToggle.isChecked(), this.colorOf(this.activeId),
+                        this.colorToggle.isChecked()));
         this.refreshTiles();
     }
 
@@ -251,14 +283,126 @@ public class LightEditorScreen extends Screen {
     private void onIgnore(boolean ignore) {
         this.dirty = true;
         this.dirtyProfiles.put(this.activeId,
-                new LightProfileRegistry.Profile(this.sliderValue, ignore));
+                new LightProfileRegistry.Profile(this.sliderValue, ignore, this.colorOf(this.activeId),
+                        this.colorToggle.isChecked()));
         this.logChange(this.activeId + (ignore ? " ignore+" : " ignore-"));
         this.refreshTiles();
     }
 
+    private void onColorEnabled(boolean enabled) {
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(),
+                        this.colorOf(this.activeId), enabled));
+        if (this.colorField != null) {
+            this.colorField.setEnabled(enabled);
+        }
+        if (!enabled) {
+            this.closeColorPicker();
+        }
+        this.logChange(this.activeId + (enabled ? " tint+" : " tint-"));
+        this.refreshTiles();
+    }
+
+    private void openColorPicker() {
+        if (this.colorToggle == null || !this.colorToggle.isChecked()) {
+            return;
+        }
+        LePopup top = this.topPopup();
+        if (top instanceof LeColorPickerPopup) {
+            return;
+        }
+        int px = (this.uiW() - LeColorPickerPopup.WIDTH) / 2;
+        int py = (this.uiH() - LeColorPickerPopup.HEIGHT) / 2;
+        this.popups.push(new LeColorPickerPopup(px, py, this.colorOf(this.activeId), this::onPickerColor));
+    }
+
+    private void closeColorPicker() {
+        LePopup top = this.topPopup();
+        if (top instanceof LeColorPickerPopup) {
+            top.close();
+        }
+    }
+
+    private void onPickerColor(int rgb) {
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(), rgb,
+                        this.colorToggle.isChecked()));
+        this.syncColorField();
+        this.refreshTiles();
+    }
+
+    private void onColor(String text) {
+        if (this.syncingColor) {
+            return;
+        }
+        int rgb = parseHexStrict(text);
+        if (rgb < 0) {
+            return; // intermediate input while typing; keep the last good color
+        }
+        this.dirty = true;
+        this.dirtyProfiles.put(this.activeId,
+                new LightProfileRegistry.Profile(this.sliderValue, this.signalToggle.isChecked(), rgb,
+                        this.colorToggle.isChecked()));
+    }
+
+    /** Strict #RRGGBB / RRGGBB, or -1. */
+    private static int parseHexStrict(String text) {
+        if (text == null) {
+            return -1;
+        }
+        String t = text.strip();
+        if (t.startsWith("#")) {
+            t = t.substring(1);
+        }
+        if (t.length() != 6) {
+            return -1;
+        }
+        try {
+            return Integer.parseUnsignedInt(t, 16) & 0xFFFFFF;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    private void syncColorField() {
+        if (this.colorField == null) {
+            return;
+        }
+        this.syncingColor = true;
+        try {
+            this.colorField.setValue(LightProfileRegistry.formatColor(this.colorOf(this.activeId)));
+        } finally {
+            this.syncingColor = false;
+        }
+    }
+
+    private int colorOf(ResourceLocation id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.color();
+        }
+        LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
+        return profile == null ? LightProfileRegistry.DEFAULT_COLOR : profile.color();
+    }
+
     private boolean ignoreOf(ResourceLocation id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.ignoreConditions();
+        }
         LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
         return profile != null && profile.ignoreConditions();
+    }
+
+    private boolean tintOf(ResourceLocation id) {
+        LightProfileRegistry.Profile dirty = this.dirtyProfiles.get(id);
+        if (dirty != null) {
+            return dirty.tintEnabled();
+        }
+        LightProfileRegistry.Profile profile = LightProfileRegistry.get(id);
+        return profile == null || profile.tintEnabled();
     }
 
     private void logChange(String line) {
@@ -305,8 +449,7 @@ public class LightEditorScreen extends Screen {
             return "Minecraft";
         }
         try {
-            return ModList.get().getModContainerById(namespace)
-                    .map(c -> c.getModInfo().getDisplayName()).orElse(namespace);
+            return me.tewek.lightengine.platform.Platform.modName(namespace);
         } catch (Exception ex) {
             return namespace;
         }
@@ -352,8 +495,8 @@ public class LightEditorScreen extends Screen {
                     continue;
                 }
                 String name = block.getName().getString();
-                ItemStack stack = new ItemStack(block.asItem());
-                int shown = id.equals(this.activeId) ? this.sliderValue : this.effectiveRadius(id);
+                ItemStack stack = BlockIcons.iconFor(block);
+                int shown = id.equals(this.activeId) ? this.sliderValue : this.pendingRadius(id);
                 cells.add(new LeTileGrid.Cell(stack.isEmpty() ? null : stack, name, id.toString(),
                         String.valueOf(shown), true, "", false, id));
             }
@@ -382,8 +525,8 @@ public class LightEditorScreen extends Screen {
                 continue;
             }
             String name = block.getName().getString();
-            ItemStack stack = new ItemStack(block.asItem());
-            int shown = id.equals(this.activeId) ? this.sliderValue : this.effectiveRadius(id);
+            ItemStack stack = BlockIcons.iconFor(block);
+            int shown = id.equals(this.activeId) ? this.sliderValue : this.pendingRadius(id);
             cells.add(new LeTileGrid.Cell(stack.isEmpty() ? null : stack, name, id.toString(),
                     String.valueOf(shown), true, "", false, id));
         }
@@ -425,8 +568,8 @@ public class LightEditorScreen extends Screen {
         }
         int menuW = 120;
         int menuH = 64;
-        int mx = (int) Math.min(this.uiW() - menuW - 4, Math.max(4, this.lastMouseX));
-        int my = (int) Math.min(this.uiH() - menuH - 4, Math.max(4, this.lastMouseY - 8));
+        int mx = (int) net.minecraft.util.Mth.clamp(this.lastMouseX, 4, this.uiW() - menuW - 4);
+        int my = (int) net.minecraft.util.Mth.clamp(this.lastMouseY - 8, 4, this.uiH() - menuH - 4);
         String rawTitle = block.getName().getString();
         int maxTitle = menuW - 20;
         while (!rawTitle.isEmpty() && this.font.width(rawTitle) > maxTitle) {
@@ -467,6 +610,7 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
     }
 
@@ -501,7 +645,36 @@ public class LightEditorScreen extends Screen {
         this.radiusSlider.setValue(this.effectiveRadius(this.activeId), false);
         this.sliderValue = this.radiusSlider.getValue();
         this.signalToggle.setChecked(this.ignoreOf(this.activeId));
+        this.syncColorField();
         this.refreshTiles();
+    }
+
+    /**
+     * Stages a built-in preset as pending edits (shown live, saved with
+     * Apply like any other change). Blocks outside the preset stay as they are.
+     */
+    private void applyPreset(me.tewek.lightengine.LightPresets.Mode mode) {
+        Map<ResourceLocation, LightProfileRegistry.Profile> preset = me.tewek.lightengine.LightPresets.build(mode);
+        this.dirtyProfiles.putAll(preset);
+        this.dirty = true;
+        for (ResourceLocation id : preset.keySet()) {
+            if (!this.paletteIds.contains(id)) {
+                this.paletteIds.add(id);
+            }
+        }
+        this.logChange("preset " + mode.key + " (" + preset.size() + ")");
+        LightProfileRegistry.Profile active = this.dirtyProfiles.get(this.activeId);
+        if (active != null) {
+            this.radiusSlider.setValue(active.lightRadius(), false);
+            this.sliderValue = this.radiusSlider.getValue();
+            this.signalToggle.setChecked(active.ignoreConditions());
+            this.colorToggle.setChecked(active.tintEnabled());
+            if (this.colorField != null) {
+                this.colorField.setEnabled(active.tintEnabled());
+            }
+        }
+        this.syncColorField();
+        this.rebuildPalette();
     }
 
     private void onX() {
@@ -537,7 +710,7 @@ public class LightEditorScreen extends Screen {
         if (this.settingsPopup != null && this.settingsPopup.isOpen()) {
             return;
         }
-        LePopup popup = new LePopup(220, 164, Component.translatable("lightengine.editor.settings"));
+        LePopup popup = new LePopup(220, 240, Component.translatable("lightengine.editor.settings"));
         this.settingsPopup = popup;
         int px = popup.panelX(this.uiW());
         int py = popup.panelY(this.uiH());
@@ -553,11 +726,28 @@ public class LightEditorScreen extends Screen {
                 Component.translatable("lightengine.editor.gui_scale"),
                 0, 4, editorGuiScale, v -> pendingScale[0] = v,
                 v -> v <= 0 ? Component.translatable("lightengine.editor.gui_scale_auto").getString() : "x" + v));
-        popup.add(new LeButton(px + 35, py + 122, 150, 20,
+        final int[] pendingStrength = new int[]{Config.colorStrength()};
+        popup.add(new LeSlider(px + 15, py + 116, 190, 28,
+                Component.translatable("lightengine.editor.color_strength"),
+                0, 100, pendingStrength[0], v -> pendingStrength[0] = v,
+                v -> v + "%"));
+        popup.add(new LeLabel(px + 15, py + 150, 190, Component.translatable("lightengine.editor.preset"),
+                LeTheme.TEXT_DIM, false));
+        me.tewek.lightengine.LightPresets.Mode[] modes = me.tewek.lightengine.LightPresets.Mode.values();
+        for (int i = 0; i < modes.length; i++) {
+            me.tewek.lightengine.LightPresets.Mode mode = modes[i];
+            popup.add(new LeButton(px + 15 + i * 64, py + 162, 62, 20,
+                    Component.translatable("lightengine.editor.preset." + mode.key), b -> this.applyPreset(mode)));
+        }
+        popup.add(new LeButton(px + 35, py + 198, 150, 20,
                 Component.translatable("lightengine.editor.apply"), b -> {
                     editorGuiScale = Math.min(4, Math.max(0, pendingScale[0]));
+                    Config.setColorStrength(pendingStrength[0]);
+                    ConfigFile.saveColorStrength(pendingStrength[0]);
+                    if (Minecraft.getInstance().levelRenderer != null) {
+                        Minecraft.getInstance().levelRenderer.allChanged();
+                    }
                     popup.close();
-                    this.init();
                 }));
         this.popups.push(popup);
     }
@@ -816,7 +1006,7 @@ public class LightEditorScreen extends Screen {
                     continue;
                 }
                 String name = block.getName().getString();
-                ItemStack stack = new ItemStack(block.asItem());
+                ItemStack stack = BlockIcons.iconFor(block);
                 rows.add(new LeScrollList.Entry(stack.isEmpty() ? null : stack, name, id.toString(), id));
                 if (rows.size() >= 1500) {
                     break;
@@ -947,7 +1137,7 @@ public class LightEditorScreen extends Screen {
         }
         EditorScene.render(graphics, this.sceneX, this.sceneY, this.sceneW, this.sceneH,
                 active, this.sliderValue, this.effectiveRadius(this.activeId),
-                this.showLevels, avoid);
+                this.showLevels, avoid, this.tintOf(this.activeId) ? this.colorOf(this.activeId) : -1);
         for (LeWidget widget : this.widgets) {
             widget.render(graphics, mouseX, mouseY, partialTick);
         }
@@ -1040,28 +1230,29 @@ public class LightEditorScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
+        double scrollX = 0.0;
         float ui = this.uiScale();
         mouseX /= ui;
         mouseY /= ui;
         LePopup popup = this.topPopup();
         if (popup != null) {
-            return popup.mouseScrolled(mouseX, mouseY, delta);
+            return popup.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
         if (hasControlDown()
                 && mouseX >= this.sceneX && mouseX < this.sceneX + this.sceneW
                 && mouseY >= this.sceneY && mouseY < this.sceneY + this.sceneH) {
-            EditorScene.zoomAt(mouseX, mouseY, delta,
+            EditorScene.zoomAt(mouseX, mouseY, scrollY != 0.0 ? scrollY : scrollX,
                     this.sceneX, this.sceneY, this.sceneW, this.sceneH);
             return true;
         }
         for (int i = this.widgets.size() - 1; i >= 0; i--) {
             if (this.widgets.get(i).isMouseOver(mouseX, mouseY)
-                    && this.widgets.get(i).mouseScrolled(mouseX, mouseY, delta)) {
+                    && this.widgets.get(i).mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
                 return true;
             }
         }
-        return super.mouseScrolled(mouseX, mouseY, delta);
+        return super.mouseScrolled(mouseX, mouseY, scrollY);
     }
 
     @Override

@@ -6,17 +6,23 @@
   "mixins": [
     "BlockStateBaseMixin",
     "LightEngineQueueEntryMixin",
-		"BlockLightEngineMixin",
-		"LayerLightSectionStorageMixin",
-		"ChunkSerializerMixin",
-		"ChunkSendMixin",
- 		"MinecraftServerMixin",
- 		"ThreadedLightCheckMixin"
+    "BlockLightEngineMixin",
+    "LayerLightSectionStorageMixin",
+    "ChunkSerializerMixin",
+    "ChunkSendMixin",
+    "MinecraftServerMixin",
+    "ThreadedLightCheckMixin",
+    "LevelChunkMixin"
   ],
-	"injectors": {
-		"defaultRequire": 1
-	},
-	"overwrites": {
-		"requireAnnotations": true
-	}
+  "client": [
+    "LevelRendererMixin",
+    "ModelBlockRendererMixin",
+    "LiquidBlockRendererMixin",
+    "PauseScreenMixin",
+    "sodium.SodiumBlockRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "lightengine.refmap.json"
 }

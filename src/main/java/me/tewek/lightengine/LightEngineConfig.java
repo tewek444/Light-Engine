@@ -1,7 +1,6 @@
 package me.tewek.lightengine;
 
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
-import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,70 +11,31 @@ import java.nio.file.WatchService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Owner of the single {@code lightengine-common.toml} file.
- * Loads it at startup, keeps profile tables intact on every write,
- * and hot-reloads it through a config-dir watcher.
+ * Fabric owner of {@code lightengine-common.toml}: loads it at startup (fresh
+ * installs get the default preset via {@link Config#refresh}), and
+ * hot-reloads it through a config-dir watcher, like NeoForge's config system.
  */
 public final class LightEngineConfig {
     private LightEngineConfig() {
     }
 
-    public static final boolean DEFAULT_ENABLED = true;
-    public static final String DEFAULT_CNFLVL = "1.0.0";
-    public static final boolean DEFAULT_CHECK_UPDATES = true;
-    public static final String FILE_NAME = "lightengine-common.toml";
-
     private static final Object LOCK = new Object();
     private static final AtomicBoolean WATCHING = new AtomicBoolean(false);
 
-    public static Path filePath() {
-        return FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
-    }
-
-    /** Initial load: creates the file with defaults when missing. */
     public static void init() {
-        synchronized (LOCK) {
-            CommentedFileConfig file = open();
-            try {
-                file.load();
-                if (Config.refresh(file)) {
-                    file.save();
-                }
-                Config.ensureExampleComment();
-            } catch (Exception ex) {
-                LightEngine.LOGGER.warn("Could not load {}", FILE_NAME, ex);
-            } finally {
-                closeQuietly(file);
-            }
-        }
+        reloadFromDisk();
         startWatcher();
-    }
-
-    /**
-     * Writes {@code enabled}/{@code cnflvl} (used by the settings screen).
-     * Loads and saves the raw file, so profile tables and comments survive.
-     */
-    public static void saveManual(boolean enabled, String cnflvl) {
-        synchronized (LOCK) {
-            CommentedFileConfig file = open();
-            try {
-                file.load();
-                file.set("enabled", enabled);
-                file.set("cnflvl", cnflvl == null || cnflvl.isBlank() ? DEFAULT_CNFLVL : cnflvl);
-                Config.refresh(file);
-                file.save();
-                Config.ensureExampleComment();
-            } catch (Exception ex) {
-                LightEngine.LOGGER.warn("Could not save {}", FILE_NAME, ex);
-            } finally {
-                closeQuietly(file);
-            }
-        }
     }
 
     private static void reloadFromDisk() {
         synchronized (LOCK) {
-            CommentedFileConfig file = open();
+            Path path = ConfigFile.path();
+            try {
+                Files.createDirectories(path.getParent());
+            } catch (Exception ignored) {
+                // load below reports the real problem
+            }
+            CommentedFileConfig file = CommentedFileConfig.builder(path).sync().build();
             try {
                 file.load();
                 if (Config.refresh(file)) {
@@ -83,26 +43,14 @@ public final class LightEngineConfig {
                 }
                 Config.ensureExampleComment();
             } catch (Exception ex) {
-                LightEngine.LOGGER.warn("Could not reload {}", FILE_NAME, ex);
+                LightEngine.LOGGER.warn("Could not load {}", ConfigFile.FILE_NAME, ex);
             } finally {
-                closeQuietly(file);
+                try {
+                    file.close();
+                } catch (Exception ignored) {
+                    // nothing to do
+                }
             }
-        }
-    }
-
-    private static CommentedFileConfig open() {
-        Path path = filePath();
-        try {
-            Files.createDirectories(path.getParent());
-        } catch (Exception ignored) {
-        }
-        return CommentedFileConfig.builder(path).sync().build();
-    }
-
-    private static void closeQuietly(CommentedFileConfig file) {
-        try {
-            file.close();
-        } catch (Exception ignored) {
         }
     }
 
@@ -117,36 +65,27 @@ public final class LightEngineConfig {
 
     private static void watchLoop() {
         try {
-            Path dir = filePath().getParent();
+            Path dir = ConfigFile.path().getParent();
             try (WatchService watcher = dir.getFileSystem().newWatchService()) {
                 dir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
                 while (true) {
-                    WatchKey key;
-                    try {
-                        key = watcher.take();
-                    } catch (InterruptedException ex) {
-                        return;
-                    }
+                    WatchKey key = watcher.take();
                     boolean ours = false;
                     for (WatchEvent<?> event : key.pollEvents()) {
-                        Object ctx = event.context();
-                        if (ctx instanceof Path name && name.toString().equals(FILE_NAME)) {
+                        if (event.context() instanceof Path name && name.toString().equals(ConfigFile.FILE_NAME)) {
                             ours = true;
                         }
                     }
                     key.reset();
-                    if (!ours) {
-                        continue;
-                    }
-                    // Debounce: editors and our own saves may fire several events.
-                    try {
+                    if (ours) {
+                        // Debounce: editors and our own saves fire several events.
                         Thread.sleep(500);
-                    } catch (InterruptedException ex) {
-                        return;
+                        reloadFromDisk();
                     }
-                    reloadFromDisk();
                 }
             }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         } catch (Exception ex) {
             LightEngine.LOGGER.warn("Config watcher stopped", ex);
         }

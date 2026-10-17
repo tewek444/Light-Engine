@@ -33,7 +33,7 @@ public class LeSlider implements LeWidget {
         this.label = label;
         this.min = min;
         this.max = Math.max(min + 1, max);
-        this.value = Math.min(this.max, Math.max(min, value));
+        this.value = net.minecraft.util.Mth.clamp(value, min, this.max);
         this.onChange = onChange;
         this.formatter = formatter;
     }
@@ -47,7 +47,7 @@ public class LeSlider implements LeWidget {
     }
 
     public void setValue(int value, boolean fire) {
-        int clamped = Math.min(this.max, Math.max(this.min, value));
+        int clamped = net.minecraft.util.Mth.clamp(value, this.min, this.max);
         if (clamped != this.value) {
             this.value = clamped;
             if (fire) {
@@ -77,7 +77,7 @@ public class LeSlider implements LeWidget {
         int filled = (int) (frac * this.width);
         graphics.fill(this.x, trackY, this.x + filled, trackY + 4, LeTheme.ACCENT_DARK);
         if (this.markedValue != null) {
-            double mfrac = (double) (Math.min(this.max, Math.max(this.min, this.markedValue)) - this.min)
+            double mfrac = (double) (net.minecraft.util.Mth.clamp(this.markedValue, this.min, this.max) - this.min)
                     / (double) (this.max - this.min);
             int mx = this.x + (int) (mfrac * this.width);
             graphics.fill(mx - 1, trackY - 3, mx + 1, trackY + 7, LeTheme.ACCENT);

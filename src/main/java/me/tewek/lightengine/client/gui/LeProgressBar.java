@@ -37,7 +37,7 @@ public class LeProgressBar implements LeWidget {
         LeTheme.frame(graphics, this.x, this.y, this.width, this.height,
                 LeTheme.FIELD_BG, LeTheme.FIELD_BORDER);
         if (this.fraction >= 0.0) {
-            double frac = Math.min(1.0, Math.max(0.0, this.fraction));
+            double frac = net.minecraft.util.Mth.clamp(this.fraction, 0.0, 1.0);
             int filled = (int) (frac * (this.width - 2));
             graphics.fill(this.x + 1, this.y + 1, this.x + 1 + filled, this.y + this.height - 1, LeTheme.ACCENT_DARK);
         }

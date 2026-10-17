@@ -109,7 +109,7 @@ public class LeTileGrid implements LeWidget {
     public void setCells(List<Cell> cells) {
         this.cells = cells == null ? new ArrayList<>() : cells;
         this.rebuildLayout();
-        this.scroll = Math.min(this.maxScroll(), Math.max(0, this.scroll));
+        this.scroll = net.minecraft.util.Mth.clamp(this.scroll, 0, this.maxScroll());
         this.hovered = -1;
         this.selected = -1;
     }
@@ -225,7 +225,7 @@ public class LeTileGrid implements LeWidget {
             }
             break;
         }
-        this.scroll = Math.min(this.maxScroll(), Math.max(0, this.scroll));
+        this.scroll = net.minecraft.util.Mth.clamp(this.scroll, 0, this.maxScroll());
     }
 
     private int indexAt(double mouseX, double mouseY) {
@@ -277,7 +277,7 @@ public class LeTileGrid implements LeWidget {
     private void drawSoloStrip(GuiGraphics graphics, Font font, MultiBufferSource buffer,
                                Cell entry, int bx, int stripY, int cell, int stripH) {
         float need = font.width(entry.left) + (entry.sun ? 7.0F : 0.0F);
-        float scale = need <= 0.5F ? 1.0F : Math.min(0.6F, Math.max(0.4F, (cell - 6.0F) / need));
+        float scale = need <= 0.5F ? 1.0F : net.minecraft.util.Mth.clamp((cell - 6.0F) / need, 0.4F, 0.6F);
         String shown = entry.left;
         while (shown.length() > 1 && font.width(shown) * scale > cell - 6.0F) {
             shown = shown.substring(0, shown.length() - 1);
@@ -303,7 +303,7 @@ public class LeTileGrid implements LeWidget {
     private void drawFittedText(GuiGraphics graphics, Font font, MultiBufferSource buffer,
                                 String text, float x, float y, float maxWidth, int color) {
         float need = font.width(text);
-        float scale = need <= 0.5F ? 1.0F : Math.min(0.6F, Math.max(0.4F, maxWidth / need));
+        float scale = need <= 0.5F ? 1.0F : net.minecraft.util.Mth.clamp(maxWidth / need, 0.4F, 0.6F);
         String shown = text;
         while (shown.length() > 1 && font.width(shown) * scale > maxWidth) {
             shown = shown.substring(0, shown.length() - 1);
@@ -420,7 +420,7 @@ public class LeTileGrid implements LeWidget {
                         leftX, textY, bx + half - 2 - leftX, LeTheme.TEXT);
                 float rightNeed = font.width(entry.right) + (entry.torch ? 6.0F : 0.0F);
                 float rightAvail = half - 5.0F;
-                float rightScale = rightNeed <= 0.5F ? 1.0F : Math.min(0.6F, Math.max(0.4F, rightAvail / rightNeed));
+                float rightScale = rightNeed <= 0.5F ? 1.0F : net.minecraft.util.Mth.clamp(rightAvail / rightNeed, 0.4F, 0.6F);
                 float groupW = rightNeed * rightScale;
                 float gx = bx + cell - 3 - groupW;
                 float gy = stripY + (stripH - 8.0F * rightScale) / 2.0F;
@@ -455,7 +455,7 @@ public class LeTileGrid implements LeWidget {
         int trackH = this.height - 2;
         int thumbH = Math.max(14, trackH * this.visibleHeight() / Math.max(1, this.contentHeight()));
         double frac = (mouseY - (this.y + 1) - thumbH / 2.0) / Math.max(1, trackH - thumbH);
-        frac = Math.min(1.0, Math.max(0.0, frac));
+        frac = net.minecraft.util.Mth.clamp(frac, 0.0, 1.0);
         this.scroll = (int) (frac * this.maxScroll());
     }
 
@@ -506,11 +506,11 @@ public class LeTileGrid implements LeWidget {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (!this.isMouseOver(mouseX, mouseY)) {
             return false;
         }
-        this.scroll = (int) Math.min(this.maxScroll(), Math.max(0, this.scroll - delta * this.rowHeight()));
+        this.scroll = (int) net.minecraft.util.Mth.clamp(this.scroll - scrollY * this.rowHeight(), 0, this.maxScroll());
         return true;
     }
 

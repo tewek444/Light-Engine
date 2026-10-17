@@ -31,6 +31,8 @@ public class LeTextField implements LeWidget {
     protected int lastClickPos = -1;
     protected String placeholder = "";
     protected final Consumer<String> responder;
+    /** Locked fields render dim and ignore all input (programmatic set still works). */
+    protected boolean enabled = true;
 
     private static final int SELECTION_COLOR = 0xFF2E4BD7;
 
@@ -53,7 +55,7 @@ public class LeTextField implements LeWidget {
             next = next.substring(0, this.maxLength);
         }
         this.text = next;
-        this.caret = Math.min(this.text.length(), Math.max(0, this.caret));
+        this.caret = net.minecraft.util.Mth.clamp(this.caret, 0, this.text.length());
         if (this.caret > this.text.length()) {
             this.caret = this.text.length();
         }
@@ -63,6 +65,17 @@ public class LeTextField implements LeWidget {
 
     public void setPlaceholder(String placeholder) {
         this.placeholder = placeholder == null ? "" : placeholder;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (!enabled) {
+            this.setFocused(false);
+        }
+    }
+
+    public boolean isEnabled() {
+        return this.enabled;
     }
 
     @Override
@@ -130,15 +143,16 @@ public class LeTextField implements LeWidget {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         LeTheme.frame(graphics, this.x, this.y, this.width, this.height,
-                LeTheme.FIELD_BG, this.focused ? LeTheme.FIELD_FOCUSED : LeTheme.FIELD_BORDER);
+                LeTheme.FIELD_BG, this.focused && this.enabled ? LeTheme.FIELD_FOCUSED : LeTheme.FIELD_BORDER);
         Font font = Minecraft.getInstance().font;
+        int textColor = this.enabled ? LeTheme.TEXT : LeTheme.TEXT_DIM;
         int textX = this.x + 4;
         int textY = this.y + (this.height - 8) / 2;
         int innerW = this.width - 8;
         if (this.text.isEmpty() && !this.placeholder.isEmpty()) {
             graphics.drawString(font, this.trimToWidth(font, this.placeholder, innerW),
                     textX, textY, LeTheme.TEXT_DIM);
-            if (this.focused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
+            if (this.enabled && this.focused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
                 graphics.fill(textX, textY - 1, textX + 1, textY + 9, LeTheme.TEXT);
             }
             return;
@@ -150,7 +164,7 @@ public class LeTextField implements LeWidget {
         }
         String visible = this.text.substring(start);
         visible = this.trimToWidth(font, visible, innerW);
-        graphics.drawString(font, visible, textX, textY, LeTheme.TEXT);
+        graphics.drawString(font, visible, textX, textY, textColor);
         if (this.hasSelection()) {
             int from = Math.max(this.selMin(), start);
             int to = Math.min(this.selMax(), start + visible.length());
@@ -160,7 +174,7 @@ public class LeTextField implements LeWidget {
                 graphics.fill(x1, textY - 1, x2, textY + 9, SELECTION_COLOR);
             }
         }
-        if (this.focused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
+        if (this.enabled && this.focused && (System.currentTimeMillis() / 500L) % 2L == 0L) {
             int caretInVisible = Math.min(this.caret - start, visible.length());
             int caretX = textX + font.width(visible.substring(0, caretInVisible));
             graphics.fill(caretX, textY - 1, caretX + 1, textY + 9, LeTheme.TEXT);
@@ -179,6 +193,9 @@ public class LeTextField implements LeWidget {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (!this.enabled) {
+            return false;
+        }
         boolean over = this.isMouseOver(mouseX, mouseY);
         this.dragging = false;
         if (!over || button != 0) {
@@ -219,8 +236,11 @@ public class LeTextField implements LeWidget {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (!this.enabled) {
+            return false;
+        }
         if (this.dragging && this.focused && button == 0) {
-            this.caret = Math.min(this.text.length(), Math.max(0, this.caretFromMouse(mouseX)));
+            this.caret = net.minecraft.util.Mth.clamp(this.caretFromMouse(mouseX), 0, this.text.length());
             return true;
         }
         return false;
@@ -237,7 +257,7 @@ public class LeTextField implements LeWidget {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!this.focused) {
+        if (!this.enabled || !this.focused) {
             return false;
         }
         boolean ctrl = Screen.hasControlDown();
@@ -352,7 +372,7 @@ public class LeTextField implements LeWidget {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (!this.focused || Character.isISOControl(codePoint)) {
+        if (!this.enabled || !this.focused || Character.isISOControl(codePoint)) {
             return false;
         }
         if (this.hasSelection()) {

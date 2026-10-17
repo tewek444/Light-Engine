@@ -88,7 +88,7 @@ public final class UpdateChecker {
         if (total <= 0) {
             return -1.0;
         }
-        return Math.min(1.0, Math.max(0.0, (double) downloaded / (double) total));
+        return net.minecraft.util.Mth.clamp((double) downloaded / (double) total, 0.0, 1.0);
     }
 
     /**

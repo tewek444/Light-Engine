@@ -3,7 +3,7 @@ package me.tewek.lightengine.network;
 import com.electronwill.nightconfig.core.CommentedConfig;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import me.tewek.lightengine.LightEngine;
-import me.tewek.lightengine.LightEngineConfig;
+import me.tewek.lightengine.ConfigFile;
 import me.tewek.lightengine.LightProfileRegistry;
 import net.minecraft.resources.ResourceLocation;
 
@@ -32,7 +32,7 @@ public final class ProfileFileStore {
         if (deltas == null || deltas.isEmpty()) {
             return;
         }
-        Path path = LightEngineConfig.filePath();
+        Path path = ConfigFile.path();
         try {
             Files.createDirectories(path.getParent());
         } catch (Exception ignored) {
@@ -51,14 +51,16 @@ public final class ProfileFileStore {
                     file.set(key, table);
                 }
                 LightProfileRegistry.Profile profile = e.getValue() == null
-                        ? new LightProfileRegistry.Profile(0, false)
+                        ? new LightProfileRegistry.Profile(0, false, LightProfileRegistry.DEFAULT_COLOR)
                         : e.getValue();
                 table.set("light_radius", profile.lightRadius());
                 table.set("ignore_conditions", profile.ignoreConditions());
+                table.set("light_color", LightProfileRegistry.formatColor(profile.color()));
+                table.set("light_color_enabled", profile.tintEnabled());
             }
             file.save();
         } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not write profiles to {}", LightEngineConfig.FILE_NAME, ex);
+            LightEngine.LOGGER.warn("Could not write profiles to {}", ConfigFile.FILE_NAME, ex);
         } finally {
             try {
                 file.close();
@@ -72,7 +74,7 @@ public final class ProfileFileStore {
         if (id == null) {
             return;
         }
-        Path path = LightEngineConfig.filePath();
+        Path path = ConfigFile.path();
         if (!Files.isRegularFile(path)) {
             return;
         }
@@ -82,7 +84,7 @@ public final class ProfileFileStore {
             file.remove(id.toString());
             file.save();
         } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not remove profile from {}", LightEngineConfig.FILE_NAME, ex);
+            LightEngine.LOGGER.warn("Could not remove profile from {}", ConfigFile.FILE_NAME, ex);
         } finally {
             try {
                 file.close();
@@ -94,7 +96,7 @@ public final class ProfileFileStore {
     /** Reads the persisted "+" (Added section) ids; empty when never saved. */
     public static Set<ResourceLocation> readAdded() {
         Set<ResourceLocation> out = new LinkedHashSet<>();
-        Path path = LightEngineConfig.filePath();
+        Path path = ConfigFile.path();
         if (!Files.isRegularFile(path)) {
             return out;
         }
@@ -113,7 +115,7 @@ public final class ProfileFileStore {
                 }
             }
         } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not read {} from {}", ADDED_KEY, LightEngineConfig.FILE_NAME, ex);
+            LightEngine.LOGGER.warn("Could not read {} from {}", ADDED_KEY, ConfigFile.FILE_NAME, ex);
         } finally {
             try {
                 file.close();
@@ -125,7 +127,7 @@ public final class ProfileFileStore {
 
     /** Persists the "+" (Added section) ids (round-trips everything else). */
     public static void writeAdded(Collection<ResourceLocation> ids) {
-        Path path = LightEngineConfig.filePath();
+        Path path = ConfigFile.path();
         try {
             Files.createDirectories(path.getParent());
         } catch (Exception ignored) {
@@ -144,7 +146,7 @@ public final class ProfileFileStore {
             file.set(ADDED_KEY, names);
             file.save();
         } catch (Exception ex) {
-            LightEngine.LOGGER.warn("Could not write {} to {}", ADDED_KEY, LightEngineConfig.FILE_NAME, ex);
+            LightEngine.LOGGER.warn("Could not write {} to {}", ADDED_KEY, ConfigFile.FILE_NAME, ex);
         } finally {
             try {
                 file.close();

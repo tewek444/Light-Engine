@@ -175,8 +175,7 @@ public final class EditorScene {
 
     // ----- flat-fill palette -----
 
-    private static final int GRASS_TOP = 0xFF74B34A;
-    private static final int STONE_LEFT = 0xFF76767C;
+        private static final int STONE_LEFT = 0xFF76767C;
     private static final int STONE_RIGHT = 0xFF606066;
 
     /** Nominal tile size, kept for API compatibility. */
@@ -237,7 +236,7 @@ public final class EditorScene {
     private static DynamicTexture bakeTex;
     private static boolean bakeRegistered;
     // Last baked inputs; animation forces a re-bake every frame while flying.
-    private static int bakeX, bakeY, bakeW, bakeH, bakeRadius;
+    private static int bakeX, bakeY, bakeW, bakeH, bakeRadius, bakeTint;
     private static float bakeZoom, bakeOx, bakeOy, bakeScale;
 
     private static void ensureBake(int w, int h) {
@@ -261,21 +260,79 @@ public final class EditorScene {
 
     /** Swap R and B channels (ABGR int <-> RGBA int, alpha untouched). */
     private static int abgrToRgba(int c) {
-        return (c & 0xFF000000) | ((c & 0xFF) << 16) | (c & 0xFF00) | ((c >> 16) & 0xFF);
+        // NativeImage#setPixelRGBA takes ABGR in 1.21.1: no swap (the old
+        // swap rendered every hue with red and blue exchanged).
+        return c;
+    }
+
+    /** Neutral floor (white-concrete albedo) so the preview shows the light's true hue. */
+    private static final float FLOOR_R = 0xCF / 255.0F;
+    private static final float FLOOR_G = 0xD3 / 255.0F;
+    private static final float FLOOR_B = 0xD4 / 255.0F;
+    /** Ambient floor so unlit cells stay readable (the scene has no sky). */
+    private static final float SCENE_AMBIENT = 0.12F;
+    private static me.tewek.lightengine.lightfield.LightmapModel.Env sceneEnv;
+    private static float sceneEnvGamma = Float.NaN;
+    private static final float[] SCENE_RGB = new float[3];
+
+    /** Bake cache key: tint (or -1) plus everything the floor shade depends on. */
+    private static int bakeKey(int tintRgb) {
+        int k = tintRgb < 0 ? 0x1000000 : tintRgb & 0xFFFFFF;
+        k = k * 31 + me.tewek.lightengine.Config.colorStrength();
+        float gamma = 0.5F;
+        try {
+            gamma = Minecraft.getInstance().options.gamma().get().floatValue();
+        } catch (RuntimeException ignored) {
+            // default brightness
+        }
+        return k * 31 + Float.floatToIntBits(gamma);
+    }
+
+    private static me.tewek.lightengine.lightfield.LightmapModel.Env sceneEnv() {
+        float gamma = 0.5F;
+        try {
+            gamma = Minecraft.getInstance().options.gamma().get().floatValue();
+        } catch (RuntimeException ignored) {
+            // keep the default brightness
+        }
+        if (sceneEnv == null || gamma != sceneEnvGamma) {
+            sceneEnv = me.tewek.lightengine.lightfield.LightmapModel.env(0.2F, 0.0F, gamma, false);
+            sceneEnvGamma = gamma;
+        }
+        return sceneEnv;
     }
 
     /**
-     * Opaque pre-darkened grass for the shade pass. The old code drew black
-     * with alpha {@code shadeA = (1 - min(v,15)/15) * SHADE_MAX} over grass;
-     * on the opaque frame that equals grass scaled by {@code 1 - shadeA},
-     * and opaque avoids double-darkening where cells overlap mid-animation.
+     * Opaque floor color of one cell, lit exactly like the world: the same
+     * lightmap model the terrain hook uses ({@code LightmapModel}), enclosed
+     * (no sky) so the hue reads undiluted. {@code tintRgb < 0} previews the
+     * vanilla warm light (tint switched off).
      */
-    private static int shadedTopAbgr(int level) {
-        float k = 0.5F + Math.min(level, 15) / 30.0F;
-        int r = (int) ((GRASS_TOP >> 16 & 0xFF) * k);
-        int g = (int) ((GRASS_TOP >> 8 & 0xFF) * k);
-        int b = (int) ((GRASS_TOP & 0xFF) * k);
-        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    private static int shadedTopAbgr(int level, int tintRgb) {
+        me.tewek.lightengine.lightfield.LightmapModel.Env env = sceneEnv();
+        int u = Math.min(15, Math.max(0, level)) * 16;
+        float[] c = SCENE_RGB;
+        if (tintRgb < 0 || level <= 0) {
+            me.tewek.lightengine.lightfield.LightmapModel.sample(env, u, 0, c);
+        } else {
+            float hr = ((tintRgb >> 16) & 0xFF) / 255.0F;
+            float hg = ((tintRgb >> 8) & 0xFF) / 255.0F;
+            float hb = (tintRgb & 0xFF) / 255.0F;
+            float peak = Math.max(hr, Math.max(hg, hb));
+            if (peak <= 0.0F) {
+                me.tewek.lightengine.lightfield.LightmapModel.sample(env, u, 0, c);
+            } else {
+                me.tewek.lightengine.lightfield.LightmapModel.sampleColored(env, u, 0,
+                        hr / peak, hg / peak, hb / peak, me.tewek.lightengine.Config.colorStrength() / 100.0F, c);
+            }
+        }
+        int ri = Math.round(255.0F * FLOOR_R * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[0]));
+        int gi = Math.round(255.0F * FLOOR_G * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[1]));
+        int bi = Math.round(255.0F * FLOOR_B * (SCENE_AMBIENT + (1.0F - SCENE_AMBIENT) * c[2]));
+        ri = Math.min(255, Math.max(0, ri));
+        gi = Math.min(255, Math.max(0, gi));
+        bi = Math.min(255, Math.max(0, bi));
+        return 0xFF000000 | (bi << 16) | (gi << 8) | ri;
     }
 
     // ----- 2D isometric projection -----
@@ -303,11 +360,17 @@ public final class EditorScene {
 
     public static void render(GuiGraphics graphics, int x, int y, int w, int h,
                               Block center, int radius, boolean showLevels) {
-        render(graphics, x, y, w, h, center, radius, radius, showLevels, null);
+        render(graphics, x, y, w, h, center, radius, radius, showLevels, null, 0xFFFFFF);
     }
 
     public static void render(GuiGraphics graphics, int x, int y, int w, int h,
                               Block center, int radius, int savedRadius, boolean showLevels, int[] avoid) {
+        render(graphics, x, y, w, h, center, radius, savedRadius, showLevels, avoid, 0xFFFFFF);
+    }
+
+    public static void render(GuiGraphics graphics, int x, int y, int w, int h,
+                              Block center, int radius, int savedRadius, boolean showLevels, int[] avoid,
+                              int tintRgb) {
         LeTheme.frame(graphics, x, y, w, h, 0xFF101014, LeTheme.PANEL_BORDER);
 
         int innerX = x + PAD;
@@ -428,6 +491,7 @@ public final class EditorScene {
         boolean dirty = bakeImg == null
                 || bakeW != clipW || bakeH != clipH
                 || bakeX != clipX0 || bakeY != clipY0 || bakeRadius != radius
+                || bakeTint != bakeKey(tintRgb)
                 || bakeZoom != sceneZoom || bakeOx != sceneOx || bakeOy != sceneOy
                 || bakeScale != smoothScale || flying;
         if (dirty) {
@@ -437,12 +501,13 @@ public final class EditorScene {
             bakeW = clipW;
             bakeH = clipH;
             bakeRadius = radius;
+            bakeTint = bakeKey(tintRgb);
             bakeZoom = sceneZoom;
             bakeOx = sceneOx;
             bakeOy = sceneOy;
             bakeScale = smoothScale;
             bakeImg.fillRect(0, 0, clipW, clipH, 0);
-            bakeField(radius, now, lo, hi, clipX0, clipY0, clipX1, clipY1);
+            bakeField(radius, tintRgb, now, lo, hi, clipX0, clipY0, clipX1, clipY1);
             bakeTex.upload();
         }
 
@@ -509,9 +574,10 @@ public final class EditorScene {
             Component name = center == null ? Component.literal("?") : center.getName();
             String rPart = radius == savedRadius
                     ? "R=" + radius : "R=" + radius + " (saved " + savedRadius + ")";
+            String hex = tintRgb < 0 ? "vanilla" : String.format("#%06X", tintRgb & 0xFFFFFF);
             String caption = showLevels
-                    ? name.getString() + " " + rPart + " field " + extent + "x" + extent
-                    : name.getString() + " " + rPart;
+                    ? name.getString() + " " + rPart + " " + hex + " field " + extent + "x" + extent
+                    : name.getString() + " " + rPart + " " + hex;
             int capW = font.width(caption);
             graphics.drawString(font, caption,
                     Math.min(Math.max(innerX, Math.round(viewCx - capW / 2.0F)), innerX + innerW - capW),
@@ -522,7 +588,7 @@ public final class EditorScene {
         drawLegend(graphics, x, y, w, h);
     }
 
-    private static final int ABGR_GRASS = 0xFF000000 | 0x4AB374;
+    private static final int ABGR_GRASS = 0xFF000000 | 0x252524;
     private static final int ABGR_STONE_L = 0xFF000000 | 0x7C7676;
     private static final int ABGR_STONE_R = 0xFF000000 | 0x666060;
     private static final int ABGR_GLASS = 0xFF000000 | 0xE8D89F;
@@ -533,7 +599,7 @@ public final class EditorScene {
      * math as the per-frame version; early-outs use the clip rect (a superset
      * of the image, so nothing visible is ever skipped).
      */
-    private static void bakeField(int radius, double now, int lo, int hi,
+    private static void bakeField(int radius, int tintRgb, double now, int lo, int hi,
                                   int clipX0, int clipY0, int clipX1, int clipY1) {
         float skirtH = 2.5F * viewLh;
         float lipH = 0.6F * viewLh;
@@ -580,7 +646,7 @@ public final class EditorScene {
                     continue;
                 }
                 int v = Math.max(0, surfaceLevel(radius, gx, gz));
-                plotDiamond(px, py, viewHw, viewHh, v >= 15 ? ABGR_GRASS : shadedTopAbgr(v));
+                plotDiamond(px, py, viewHw, viewHh, shadedTopAbgr(v, tintRgb));
             }
         }
         // Shrinking: dropped rings fall off downward, then vanish.

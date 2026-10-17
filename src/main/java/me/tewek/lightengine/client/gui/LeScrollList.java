@@ -62,7 +62,7 @@ public class LeScrollList implements LeWidget {
 
     public void setEntries(List<Entry> entries) {
         this.entries = entries == null ? new ArrayList<>() : entries;
-        this.scroll = Math.min(this.maxScroll(), Math.max(0, this.scroll));
+        this.scroll = net.minecraft.util.Mth.clamp(this.scroll, 0, this.maxScroll());
         this.selected = -1;
     }
 
@@ -101,7 +101,7 @@ public class LeScrollList implements LeWidget {
         } else if (top + this.rowHeight > this.scroll + this.height - 4) {
             this.scroll = top + this.rowHeight - (this.height - 4);
         }
-        this.scroll = Math.min(this.maxScroll(), Math.max(0, this.scroll));
+        this.scroll = net.minecraft.util.Mth.clamp(this.scroll, 0, this.maxScroll());
     }
 
     private String trimToWidth(Font font, String value, int maxWidth) {
@@ -194,7 +194,7 @@ public class LeScrollList implements LeWidget {
         int trackH = this.height - 2;
         int thumbH = Math.max(12, trackH * (this.height - 4) / Math.max(1, this.contentHeight()));
         double frac = (mouseY - (this.y + 1) - thumbH / 2.0) / Math.max(1, trackH - thumbH);
-        frac = Math.min(1.0, Math.max(0.0, frac));
+        frac = net.minecraft.util.Mth.clamp(frac, 0.0, 1.0);
         this.scroll = (int) (frac * this.maxScroll());
     }
 
@@ -217,11 +217,11 @@ public class LeScrollList implements LeWidget {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (!this.isMouseOver(mouseX, mouseY)) {
             return false;
         }
-        this.scroll = (int) Math.min(this.maxScroll(), Math.max(0, this.scroll - delta * this.rowHeight));
+        this.scroll = (int) net.minecraft.util.Mth.clamp(this.scroll - scrollY * this.rowHeight, 0, this.maxScroll());
         return true;
     }
 

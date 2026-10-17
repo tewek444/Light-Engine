@@ -1,41 +1,31 @@
 package me.tewek.lightengine;
 
-import me.tewek.lightengine.client.ClientOverlayHooks;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import me.tewek.lightengine.client.ColorLightEnv;
+import me.tewek.lightengine.client.LeClientDump;
+import me.tewek.lightengine.client.LightOverlayRenderer;
 import me.tewek.lightengine.client.gui.LightEditorScreen;
-import me.tewek.lightengine.lightfield.LightField;
+import me.tewek.lightengine.client.gui.UpdateChecker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.level.Level;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.ConfigScreenHandler;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 
-/**
- * Client-only init, called from {@link LightEngine} behind a dist check.
- * Forge 1.20.1 has no {@code @Mod(dist=...)} split, so this is a plain class:
- * it is never touched on a dedicated server (class resolution is lazy, and
- * {@code init()} is only invoked on the client).
- */
-public class LightEngineClient {
-    /**
-     * Last client level seen on the render thread. Dropped on disconnect.
-     * Scoped to the client level on purpose: the static stores are shared
-     * with the integrated server in the same JVM, so a blanket drop-all on
-     * disconnect would wipe SERVER data before it is saved (stale-light
-     * ghost). Server levels are cleaned by their own unload event instead.
-     */
-    private static volatile Level rememberedLevel;
-
+/** Forge 1.20.1 client wiring. Only called on the physical client. */
+public final class LightEngineClient {
     private LightEngineClient() {
     }
 
     public static void init() {
         ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory(
-                        (minecraft, parent) -> new LightEditorScreen(parent)));
-        ClientOverlayHooks.register();
+                () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new LightEditorScreen(parent)));
         MinecraftForge.EVENT_BUS.register(LightEngineClient.class);
     }
 
@@ -44,18 +34,51 @@ public class LightEngineClient {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
-        Level level = Minecraft.getInstance().level;
-        if (level != null) {
-            rememberedLevel = level;
+        try {
+            ColorLightEnv.tick();
+        } catch (Exception ex) {
+            LightEngine.LOGGER.debug("Colored light env tick failed", ex);
         }
     }
 
     @SubscribeEvent
-    public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        Level level = rememberedLevel;
-        rememberedLevel = null;
-        if (level != null) {
-            LightField.drop(level);
+    public static void onRenderStage(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS || !LightOverlayRenderer.isEnabled()) {
+            return;
+        }
+        Vec3 cam = event.getCamera().getPosition();
+        LightOverlayRenderer.render(event.getPoseStack(), cam.x, cam.y, cam.z,
+                Minecraft.getInstance().renderBuffers().bufferSource());
+    }
+
+    @SubscribeEvent
+    public static void onClientCommands(RegisterClientCommandsEvent event) {
+        event.getDispatcher().register(Commands.literal("lightengine")
+                .then(Commands.literal("light_level").executes(ctx -> {
+                    LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
+                    return 1;
+                }))
+                .then(Commands.literal("update_check")
+                        .executes(ctx -> {
+                            UpdateChecker.checkCurrent(LightEngine.LOADER);
+                            tell("LightEngine: checking for updates...");
+                            return 1;
+                        })
+                        .then(Commands.argument("version", StringArgumentType.word())
+                                .executes(ctx -> {
+                                    String fake = StringArgumentType.getString(ctx, "version");
+                                    UpdateChecker.check(fake, LightEngine.LOADER);
+                                    tell("LightEngine: checking for updates as " + fake + "...");
+                                    return 1;
+                                }))));
+        event.getDispatcher().register(Commands.literal("leclient").executes(ctx -> LeClientDump.run()));
+    }
+
+    private static void tell(String message) {
+        LightEngine.LOGGER.info(message);
+        var player = Minecraft.getInstance().player;
+        if (player != null) {
+            player.sendSystemMessage(Component.literal(message));
         }
     }
 }

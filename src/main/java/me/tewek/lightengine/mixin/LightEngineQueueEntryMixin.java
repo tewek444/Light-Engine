@@ -16,9 +16,9 @@ import org.spongepowered.asm.mixin.Overwrite;
  * <p>Extended layout: level bits 0-7, direction bits 8-13 (set = propagate),
  * from-empty bit 14, increase-from-emission bit 15.
  *
- * <p>Note the vanilla quirks preserved here: {@code m_284188_}
- * and {@code m_284128_} do NOT set the increase flag, and
- * {@code m_284543_} sets direction bits for the
+ * <p>Note the vanilla quirks preserved here: {@code increaseSkipOneDirection}
+ * and {@code increaseOnlyOneDirection} do NOT set the increase flag, and
+ * {@code increaseSkySourceInDirections} sets direction bits for the
  * {@code true} inputs at level 15.
  */
 @Mixin(LightEngine.QueueEntry.class)
@@ -36,8 +36,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static int m_284170_(long entry) {
+    @Overwrite
+    public static int getFromLevel(long entry) {
         return (int) (entry & LE_LEVEL_MASK);
     }
 
@@ -45,8 +45,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    private static long m_284455_(long entry, int level) {
+    @Overwrite
+    private static long withLevel(long entry, int level) {
         return entry & ~LE_LEVEL_MASK | (long) level & LE_LEVEL_MASK;
     }
 
@@ -54,8 +54,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static boolean m_284416_(long entry, Direction direction) {
+    @Overwrite
+    public static boolean shouldPropagateInDirection(long entry, Direction direction) {
         return (entry & leBit(direction)) != 0L;
     }
 
@@ -63,8 +63,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    private static long m_284335_(long entry, Direction direction) {
+    @Overwrite
+    private static long withDirection(long entry, Direction direction) {
         return entry | leBit(direction);
     }
 
@@ -72,8 +72,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    private static long m_284441_(long entry, Direction direction) {
+    @Overwrite
+    private static long withoutDirection(long entry, Direction direction) {
         return entry & ~leBit(direction);
     }
 
@@ -81,8 +81,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static boolean m_284390_(long entry) {
+    @Overwrite
+    public static boolean isFromEmptyShape(long entry) {
         return (entry & LE_FLAG_FROM_EMPTY_SHAPE) != 0L;
     }
 
@@ -90,8 +90,8 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static boolean m_284312_(long entry) {
+    @Overwrite
+    public static boolean isIncreaseFromEmission(long entry) {
         return (entry & LE_FLAG_INCREASE_FROM_EMISSION) != 0L;
     }
 
@@ -99,83 +99,83 @@ public abstract class LightEngineQueueEntryMixin {
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284290_(int level) {
-        return m_284455_(LE_DIRECTIONS_MASK, level);
+    @Overwrite
+    public static long decreaseAllDirections(int level) {
+        return withLevel(LE_DIRECTIONS_MASK, level);
     }
 
     /**
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284546_(int level, Direction direction) {
-        long entry = m_284441_(LE_DIRECTIONS_MASK, direction);
-        return m_284455_(entry, level);
+    @Overwrite
+    public static long decreaseSkipOneDirection(int level, Direction direction) {
+        long entry = withoutDirection(LE_DIRECTIONS_MASK, direction);
+        return withLevel(entry, level);
     }
 
     /**
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284185_(int level, boolean fromEmptyShape) {
+    @Overwrite
+    public static long increaseLightFromEmission(int level, boolean fromEmptyShape) {
         long entry = LE_DIRECTIONS_MASK;
         entry |= LE_FLAG_INCREASE_FROM_EMISSION;
         if (fromEmptyShape) {
             entry |= LE_FLAG_FROM_EMPTY_SHAPE;
         }
-        return m_284455_(entry, level);
+        return withLevel(entry, level);
     }
 
     /**
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284188_(int level, boolean fromEmptyShape, Direction direction) {
-        long entry = m_284441_(LE_DIRECTIONS_MASK, direction);
+    @Overwrite
+    public static long increaseSkipOneDirection(int level, boolean fromEmptyShape, Direction direction) {
+        long entry = withoutDirection(LE_DIRECTIONS_MASK, direction);
         if (fromEmptyShape) {
             entry |= LE_FLAG_FROM_EMPTY_SHAPE;
         }
-        return m_284455_(entry, level);
+        return withLevel(entry, level);
     }
 
     /**
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284128_(int level, boolean fromEmptyShape, Direction direction) {
+    @Overwrite
+    public static long increaseOnlyOneDirection(int level, boolean fromEmptyShape, Direction direction) {
         long entry = 0L;
         if (fromEmptyShape) {
             entry |= LE_FLAG_FROM_EMPTY_SHAPE;
         }
-        entry = m_284335_(entry, direction);
-        return m_284455_(entry, level);
+        entry = withDirection(entry, direction);
+        return withLevel(entry, level);
     }
 
     /**
      * @author LightEngine
      * @reason widen level field beyond vanilla 4 bits
      */
-    @Overwrite(remap = false)
-    public static long m_284543_(boolean down, boolean north, boolean south, boolean west, boolean east) {
-        long entry = m_284455_(0L, 15);
+    @Overwrite
+    public static long increaseSkySourceInDirections(boolean down, boolean north, boolean south, boolean west, boolean east) {
+        long entry = withLevel(0L, 15);
         if (down) {
-            entry = m_284335_(entry, Direction.DOWN);
+            entry = withDirection(entry, Direction.DOWN);
         }
         if (north) {
-            entry = m_284335_(entry, Direction.NORTH);
+            entry = withDirection(entry, Direction.NORTH);
         }
         if (south) {
-            entry = m_284335_(entry, Direction.SOUTH);
+            entry = withDirection(entry, Direction.SOUTH);
         }
         if (west) {
-            entry = m_284335_(entry, Direction.WEST);
+            entry = withDirection(entry, Direction.WEST);
         }
         if (east) {
-            entry = m_284335_(entry, Direction.EAST);
+            entry = withDirection(entry, Direction.EAST);
         }
         return entry;
     }

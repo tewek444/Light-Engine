@@ -1,4 +1,4 @@
-package me.tewek.lightengine.client.mixin;
+package me.tewek.lightengine.mixin;
 
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
@@ -13,15 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Client-only clamp: the packed block component is folded back to the
  * vanilla maximum so extended levels never overexpose the frame.
- * Sky is passed through untouched.
- *
- * <p>SRG target: {@code m_109537_} is {@code getLightColor} (see
- * gen-refmap.py). Pinned with {@code remap = false}.
+ * Sky is passed through untouched. Alpha4 keeps this guard while the true
+ * RGB terrain tint lands (Sodium/Iris path); entity tint goes through
+ * {@link me.tewek.lightengine.LightEngineApi} next.
  */
 @Mixin(LevelRenderer.class)
 public abstract class LevelRendererMixin {
-    @Inject(method = "m_109537_(Lnet/minecraft/world/level/BlockAndTintGetter;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;)I",
-            at = @At("RETURN"), cancellable = true, remap = false)
+    @Inject(method = "getLightColor(Lnet/minecraft/world/level/BlockAndTintGetter;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;)I",
+            at = @At("RETURN"), cancellable = true)
     private static void lightengine$clampBlockLight(BlockAndTintGetter level, BlockState state, BlockPos pos,
                                                    CallbackInfoReturnable<Integer> cir) {
         int packed = cir.getReturnValue();
