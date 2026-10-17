@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Client-side dump for stale-light diagnosis: counts CLIENT extended cells
  * around the player plus vanilla brightness, prints to chat and the log,
  * and copies the summary to the clipboard. Compare with server-side
- * {@code /ledump}. Y range covers the light padding sections below/above
+ * {@code /le dump}. Y range covers the light padding sections below/above
  * the buildable world.
  */
 public final class LeClientDump {

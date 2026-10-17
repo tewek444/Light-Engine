@@ -14,7 +14,7 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 /**
- * Client-only wiring for the light overlay: {@code /lightengine light_level}
+ * Client-only wiring for the light overlay: {@code /le light_level}
  * toggles it, {@link LightOverlayRenderer} submits it with the level geometry.
  * Registered from {@code LightEngineClient}, never loaded on a server.
  */
@@ -29,25 +29,29 @@ public final class ClientOverlayHooks {
     @SubscribeEvent
     public static void onClientCommands(RegisterClientCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
-        dispatcher.register(Commands.literal("lightengine")
-                .then(Commands.literal("light_level").executes(ctx -> {
-                    LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
-                    return 1;
-                }))
-                .then(Commands.literal("update_check")
-                        .executes(ctx -> {
-                            UpdateChecker.checkCurrent(LightEngine.LOADER);
-                            tell("LightEngine: checking for updates...");
-                            return 1;
-                        })
-                        .then(Commands.argument("version", StringArgumentType.word())
-                                .executes(ctx -> {
-                                    String fake = StringArgumentType.getString(ctx, "version");
-                                    UpdateChecker.check(fake, LightEngine.LOADER);
-                                    tell("LightEngine: checking for updates as " + fake + "...");
-                                    return 1;
-                                }))));
-        dispatcher.register(Commands.literal("leclient").executes(ctx -> LeClientDump.run()));
+        for (String root : new String[]{"le", "light_engine"}) {
+            dispatcher.register(Commands.literal(root)
+                    .then(Commands.literal("light_level").executes(ctx -> {
+                        LightOverlayRenderer.announce(LightOverlayRenderer.toggle());
+                        return 1;
+                    }))
+                    .then(Commands.literal("update_check")
+                            .executes(ctx -> {
+                                UpdateChecker.checkCurrent(LightEngine.LOADER);
+                                tell("LightEngine: checking for updates...");
+                                return 1;
+                            })
+                            .then(Commands.argument("version", StringArgumentType.word())
+                                    .executes(ctx -> {
+                                        String fake = StringArgumentType.getString(ctx, "version");
+                                        UpdateChecker.check(fake, LightEngine.LOADER);
+                                        tell("LightEngine: checking for updates as " + fake + "...");
+                                        return 1;
+                                    }))));
+        }
+        for (String root : new String[]{"le", "light_engine"}) {
+            dispatcher.register(Commands.literal(root).then(Commands.literal("dump_client").executes(ctx -> LeClientDump.run())));
+        }
     }
 
     private static void tell(String message) {
