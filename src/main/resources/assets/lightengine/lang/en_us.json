@@ -37,7 +37,7 @@
   "lightengine.editor.pending": "Pending: %s",
   "lightengine.editor.no_world": "Scene preview needs an open world",
   "lightengine.editor.no_item": "No item form, showing glass",
-  "lightengine.editor.denied": "LightEngine: server operator permission required.",
+  "lightengine.editor.denied": "LightEngine: only the server owner (operator level 4) can change light settings.",
   "lightengine.editor.applied": "LightEngine: %s radius set to %s",
   "lightengine.editor.pause_button": "Light Engine",
   "lightengine.editor.open_editor": "Editor...",
