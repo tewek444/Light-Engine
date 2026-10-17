@@ -122,6 +122,52 @@ public final class LightFieldStore {
         }
     }
 
+    /** Server chunks unloaded but maybe not saved yet: packed chunk key -> unload time (nanos). */
+    private final ConcurrentHashMap<Long, Long> pendingEvict = new ConcurrentHashMap<>();
+    private static final long PENDING_EVICT_NANOS = 5_000_000_000L;
+
+    private static long chunkKey(int chunkX, int chunkZ) {
+        return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+    }
+
+    /**
+     * Chunk unload. The unload event fires before the chunk is serialized, so a
+     * server chunk only gets marked here and is evicted by {@link #onChunkSaved}
+     * once its field is written. Marks that never see a save (unchanged chunks)
+     * are swept on later unloads. Client chunks are evicted at once.
+     */
+    public void evictAfterSave(Level level, int chunkX, int chunkZ) {
+        if (level == null || level.isClientSide()) {
+            evictChunk(chunkX, chunkZ);
+            return;
+        }
+        long now = System.nanoTime();
+        pendingEvict.entrySet().removeIf(e -> {
+            if (now - e.getValue() < PENDING_EVICT_NANOS) {
+                return false;
+            }
+            int x = (int) (e.getKey() >> 32);
+            int z = (int) (long) e.getKey();
+            if (!level.hasChunk(x, z)) {
+                evictChunk(x, z);
+            }
+            return true;
+        });
+        pendingEvict.put(chunkKey(chunkX, chunkZ), now);
+    }
+
+    /** The chunk is being loaded again: its field must not be evicted by an old unload mark. */
+    public void onChunkLoaded(int chunkX, int chunkZ) {
+        pendingEvict.remove(chunkKey(chunkX, chunkZ));
+    }
+
+    /** The chunk's field was just encoded for saving: evict it if it was unloaded. */
+    public void onChunkSaved(int chunkX, int chunkZ) {
+        if (pendingEvict.remove(chunkKey(chunkX, chunkZ)) != null) {
+            evictChunk(chunkX, chunkZ);
+        }
+    }
+
     public void evictChunk(int chunkX, int chunkZ) {
         sections.keySet().removeIf(pos -> SectionPos.x(pos) == chunkX && SectionPos.z(pos) == chunkZ);
     }
