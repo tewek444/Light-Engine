@@ -60,6 +60,7 @@ public abstract class SerializableChunkDataMixin {
             if (blobs != null) {
                 LE_PENDING.put(data, blobs);
             }
+            me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkSaved(pos.x, pos.z);
         } catch (Exception ignored) {
         }
     }
@@ -100,6 +101,7 @@ public abstract class SerializableChunkDataMixin {
         if (data == null) {
             return;
         }
+        me.tewek.lightengine.lightfield.LightFieldStore.forLevel(level).onChunkLoaded(data.chunkPos().x, data.chunkPos().z);
         // Vanilla drops stored light when it must relight the chunk (version
         // upgrade, interrupted lighting). Stale extended cells would then read
         // as "already lit" and stop the relight wave: skip them too.
