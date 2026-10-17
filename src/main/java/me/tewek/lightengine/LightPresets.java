@@ -47,8 +47,14 @@ public final class LightPresets {
         }
     }
 
-    /** One preset row: vanilla radius, boosted radius, light color. */
-    private record Entry(String id, int vanilla, int radius, int color) {
+    /** Preset table revision; configs seeded with an older one get the new rows added. */
+    public static final int REVISION = 2;
+
+    /** One preset row: vanilla radius, boosted radius, light color, revision it was added in. */
+    private record Entry(String id, int vanilla, int radius, int color, int since) {
+        Entry(String id, int vanilla, int radius, int color) {
+            this(id, vanilla, radius, color, 1);
+        }
     }
 
     private static final List<Entry> TABLE = List.of(
@@ -92,7 +98,65 @@ public final class LightPresets {
             new Entry("furnace", 13, 18, 0xFF8A30),
             new Entry("smoker", 13, 18, 0xFF8A30),
             new Entry("blast_furnace", 13, 18, 0xFF9A50),
-            new Entry("candle", 3, 6, 0xFFB050)
+            new Entry("candle", 12, 16, 0xFFB050),
+            new Entry("copper_torch", 14, 22, 0x7CFF8A, 2),
+            new Entry("copper_wall_torch", 14, 22, 0x7CFF8A, 2),
+            new Entry("copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("exposed_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("weathered_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("oxidized_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("waxed_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("waxed_exposed_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("waxed_weathered_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("waxed_oxidized_copper_lantern", 15, 24, 0x8CFFA0, 2),
+            new Entry("exposed_copper_bulb", 12, 18, 0xFFB070, 2),
+            new Entry("weathered_copper_bulb", 8, 12, 0xFFB070, 2),
+            new Entry("oxidized_copper_bulb", 4, 6, 0xFFB070, 2),
+            new Entry("waxed_exposed_copper_bulb", 12, 18, 0xFFB070, 2),
+            new Entry("waxed_weathered_copper_bulb", 8, 12, 0xFFB070, 2),
+            new Entry("waxed_oxidized_copper_bulb", 4, 6, 0xFFB070, 2),
+            new Entry("lava_cauldron", 15, 20, 0xFF5A10, 2),
+            new Entry("redstone_ore", 9, 12, 0xFF3030, 2),
+            new Entry("deepslate_redstone_ore", 9, 12, 0xFF3030, 2),
+            new Entry("medium_amethyst_bud", 2, 4, 0xB070FF, 2),
+            new Entry("small_amethyst_bud", 1, 2, 0xB070FF, 2),
+            new Entry("firefly_bush", 2, 4, 0xD8FF6A, 2),
+            new Entry("brewing_stand", 1, 3, 0xFFD27A, 2),
+            new Entry("dragon_egg", 1, 3, 0xC060FF, 2),
+            new Entry("end_portal_frame", 1, 3, 0x9FE8FF, 2),
+            new Entry("white_candle", 12, 16, 0xFFF4E0, 2),
+            new Entry("orange_candle", 12, 16, 0xFF9A3C, 2),
+            new Entry("magenta_candle", 12, 16, 0xFF5AE6, 2),
+            new Entry("light_blue_candle", 12, 16, 0x7CCBFF, 2),
+            new Entry("yellow_candle", 12, 16, 0xFFE45A, 2),
+            new Entry("lime_candle", 12, 16, 0x9CFF5A, 2),
+            new Entry("pink_candle", 12, 16, 0xFF9AC8, 2),
+            new Entry("gray_candle", 12, 16, 0xB4B4B4, 2),
+            new Entry("light_gray_candle", 12, 16, 0xD8D8D8, 2),
+            new Entry("cyan_candle", 12, 16, 0x3FE0E0, 2),
+            new Entry("purple_candle", 12, 16, 0xB060FF, 2),
+            new Entry("blue_candle", 12, 16, 0x4A6BFF, 2),
+            new Entry("brown_candle", 12, 16, 0xC8864A, 2),
+            new Entry("green_candle", 12, 16, 0x5ABF3C, 2),
+            new Entry("red_candle", 12, 16, 0xFF3A3A, 2),
+            new Entry("black_candle", 12, 16, 0x9A88B0, 2),
+            new Entry("candle_cake", 3, 6, 0xFFB050, 2),
+            new Entry("white_candle_cake", 3, 6, 0xFFF4E0, 2),
+            new Entry("orange_candle_cake", 3, 6, 0xFF9A3C, 2),
+            new Entry("magenta_candle_cake", 3, 6, 0xFF5AE6, 2),
+            new Entry("light_blue_candle_cake", 3, 6, 0x7CCBFF, 2),
+            new Entry("yellow_candle_cake", 3, 6, 0xFFE45A, 2),
+            new Entry("lime_candle_cake", 3, 6, 0x9CFF5A, 2),
+            new Entry("pink_candle_cake", 3, 6, 0xFF9AC8, 2),
+            new Entry("gray_candle_cake", 3, 6, 0xB4B4B4, 2),
+            new Entry("light_gray_candle_cake", 3, 6, 0xD8D8D8, 2),
+            new Entry("cyan_candle_cake", 3, 6, 0x3FE0E0, 2),
+            new Entry("purple_candle_cake", 3, 6, 0xB060FF, 2),
+            new Entry("blue_candle_cake", 3, 6, 0x4A6BFF, 2),
+            new Entry("brown_candle_cake", 3, 6, 0xC8864A, 2),
+            new Entry("green_candle_cake", 3, 6, 0x5ABF3C, 2),
+            new Entry("red_candle_cake", 3, 6, 0xFF3A3A, 2),
+            new Entry("black_candle_cake", 3, 6, 0x9A88B0, 2)
     );
     // Not in the table on purpose: blocks whose emission depends on a
     // non-LIT property (respawn_anchor charges, cave_vines berries, light
@@ -103,8 +167,16 @@ public final class LightPresets {
      * Radius is clamped to the vanilla value in {@link Mode#COLOR_ONLY}.
      */
     public static Map<Identifier, LightProfileRegistry.Profile> build(Mode mode) {
+        return build(mode, 0);
+    }
+
+    /** Rows added after {@code afterRevision} only (0 = the whole table). */
+    public static Map<Identifier, LightProfileRegistry.Profile> build(Mode mode, int afterRevision) {
         Map<Identifier, LightProfileRegistry.Profile> out = new LinkedHashMap<>();
         for (Entry e : TABLE) {
+            if (e.since() <= afterRevision) {
+                continue;
+            }
             Identifier id = Identifier.withDefaultNamespace(e.id());
             if (!BuiltInRegistries.BLOCK.containsKey(id)) {
                 continue;

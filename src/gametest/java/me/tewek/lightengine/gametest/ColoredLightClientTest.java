@@ -19,6 +19,7 @@ public class ColoredLightClientTest implements FabricClientGameTest {
         context.runOnClient(mc -> {
             mc.options.getSoundSourceOptionInstance(SoundSource.MASTER).set(0.0);
         });
+        context.runOnClient(mc -> listEmitters());
         try (TestSingleplayerContext sp = context.worldBuilder().create()) {
             TestServerContext server = sp.getServer();
             server.runCommand("time set midnight");
@@ -45,6 +46,13 @@ public class ColoredLightClientTest implements FabricClientGameTest {
             server.runCommand("setblock 0 -60 0 minecraft:redstone_torch");
             context.waitTicks(40);
             context.takeScreenshot("le_redstone_torch");
+            server.runCommand("setblock 0 -60 0 minecraft:copper_lantern");
+            server.runCommand("setblock -4 -60 -3 minecraft:lime_candle[candles=4,lit=true]");
+            server.runCommand("setblock 4 -60 -3 minecraft:magenta_candle[candles=1,lit=true]");
+            context.waitTicks(40);
+            context.takeScreenshot("le_copper_and_candles");
+            server.runCommand("setblock -4 -60 -3 minecraft:air");
+            server.runCommand("setblock 4 -60 -3 minecraft:air");
 
             // Bug #1: lantern on a support; breaking the support must drop the light.
             server.runCommand("setblock 0 -60 0 minecraft:air");
@@ -64,6 +72,14 @@ public class ColoredLightClientTest implements FabricClientGameTest {
             context.setScreen(() -> new LightEditorScreen(null));
             context.waitTicks(40);
             context.takeScreenshot("le_editor");
+            // Left click on a tile of the block list: selects it (26.3 SDL button numbering).
+            context.getInput().setCursorPos(578, 180);
+            context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+            context.waitTicks(10);
+            context.takeScreenshot("le_editor_left_click");
+            context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT);
+            context.waitTicks(10);
+            context.takeScreenshot("le_editor_right_click");
             context.setScreen(() -> null);
         }
     }
@@ -101,5 +117,20 @@ public class ColoredLightClientTest implements FabricClientGameTest {
         log.info("[diag] floor block={} tint={} quadTinter={} mult0={},{},{}", block,
                 Integer.toHexString(tint), res != null,
                 res == null ? -1 : res.mult[0], res == null ? -1 : res.mult[1], res == null ? -1 : res.mult[2]);
+    }
+
+    /** Every block that can emit light, with its max emission and preset state. */
+    private static void listEmitters() {
+        var presets = me.tewek.lightengine.LightPresets.build(me.tewek.lightengine.LightPresets.Mode.RADIUS_AND_COLOR);
+        for (var block : net.minecraft.core.registries.BuiltInRegistries.BLOCK) {
+            int max = 0;
+            for (var st : block.getStateDefinition().getPossibleStates()) {
+                max = Math.max(max, st.getLightEmission());
+            }
+            if (max > 0) {
+                var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+                me.tewek.lightengine.LightEngine.LOGGER.info("[emit] {} {} {}", id, max, presets.containsKey(id) ? "preset" : "MISSING");
+            }
+        }
     }
 }
