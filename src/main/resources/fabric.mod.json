@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "lightengine",
+  "version": "${version}",
+  "name": "Light Engine",
+  "description": "Per-block light radius and true colored light, with an API for other mods.",
+  "authors": [
+    "Tewek"
+  ],
+  "license": "MIT",
+  "icon": "assets/lightengine/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "me.tewek.lightengine.LightEngine"
+    ],
+    "client": [
+      "me.tewek.lightengine.LightEngineClient"
+    ],
+    "modmenu": [
+      "me.tewek.lightengine.client.compat.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "lightengine.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "fabric-api": "*",
+    "minecraft": "~1.21.5",
+    "java": ">=21"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
