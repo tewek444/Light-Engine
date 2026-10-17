@@ -14,9 +14,22 @@ import java.util.Map;
  * Existing placed blocks are intentionally NOT relit here (deferred).
  */
 public final class ProfileUpdateHandler {
-    public static final int REQUIRED_OP_LEVEL = 2;
+    /** Light profiles are server-wide settings: owner level (4) only. */
+    public static final int REQUIRED_OP_LEVEL = 4;
 
     private ProfileUpdateHandler() {
+    }
+
+    /**
+     * The host of a singleplayer/LAN world may always edit; on a server only
+     * the owner (operator level 4) may, not every operator.
+     */
+    public static boolean canEdit(ServerPlayer player) {
+        var server = player.level().getServer();
+        if (server != null && server.isSingleplayerOwner(player.nameAndId())) {
+            return true;
+        }
+        return player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_OWNER);
     }
 
     public static void handle(ServerPlayer player, Identifier id, int radius, boolean ignoreConditions,
@@ -24,10 +37,12 @@ public final class ProfileUpdateHandler {
         if (player == null || id == null) {
             return;
         }
-        if (!player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) {
+        if (!canEdit(player)) {
             player.sendSystemMessage(Component.translatable("lightengine.editor.denied"));
-            LightEngine.LOGGER.warn("Rejected profile update from non-operator {}",
+            LightEngine.LOGGER.warn("Rejected profile update from {} (owner level 4 required)",
                     player.getName().getString());
+            // The editor applied the change locally first: roll it back.
+            resync(player);
             return;
         }
         if (radius < 0) {
@@ -48,6 +63,14 @@ public final class ProfileUpdateHandler {
                     id, clamped, LightProfileRegistry.EFFECTIVE_MAX_RADIUS);
         }
         player.sendSystemMessage(Component.translatable("lightengine.editor.applied", id.toString(), clamped));
+    }
+
+    /** Sends the authoritative profiles to one player (undoes a rejected local edit). */
+    private static void resync(ServerPlayer player) {
+        try {
+            me.tewek.lightengine.platform.Platform.sendToPlayer(player, ProfileSyncPayload.of(LightProfileRegistry.snapshot()));
+        } catch (Exception ignored) {
+        }
     }
 
     /** Rebroadcasts the authoritative snapshot so remote clients tint alike. */
