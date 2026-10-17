@@ -6,7 +6,8 @@
   "entrypoints": {
     "fabric-client-gametest": [
       "me.tewek.lightengine.gametest.ColoredLightClientTest",
-      "me.tewek.lightengine.gametest.RejoinLightTest"
+      "me.tewek.lightengine.gametest.RejoinLightTest",
+      "me.tewek.lightengine.gametest.DedicatedServerLightTest"
     ]
   },
   "depends": {
