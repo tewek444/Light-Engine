@@ -85,6 +85,19 @@ neoForge {
             programArguments.addAll '--quickPlaySingleplayer', 'New World'
         }
 
+        // Multiplayer autotest: start `runAutotestServer`, then `runAutotestJoin`.
+        autotestServer {
+            server()
+            gameDirectory = project.file('run-server')
+            programArgument '--nogui'
+        }
+        autotestJoin {
+            client()
+            gameDirectory = project.file('run')
+            systemProperty 'le.autotest', 'join'
+            programArguments.addAll '--quickPlayMultiplayer', '127.0.0.1:25599'
+        }
+
         server {
             server()
             loadedMods = [mods."${mod_id}"]

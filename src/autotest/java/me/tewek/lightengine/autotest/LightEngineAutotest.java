@@ -30,6 +30,11 @@ public class LightEngineAutotest {
     private int wait = -1;
 
     public LightEngineAutotest() {
+        if ("join".equals(System.getProperty("le.autotest"))) {
+            // Multiplayer run: the scripted client half, against runAutotestServer.
+            NeoForge.EVENT_BUS.register(new JoinAutotest());
+            return;
+        }
         cmd(0, "time set midnight");
         cmd(0, "fill -12 -61 -12 12 -55 12 minecraft:air");
         cmd(0, "fill -12 -61 -12 12 -61 12 minecraft:stone");

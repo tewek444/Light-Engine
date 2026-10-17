@@ -9,3 +9,4 @@ logs/
 port-build.*
 gen-refmap.py
 test-screens/
+run-server/
